@@ -124,7 +124,7 @@ async function runPopupLifecycleTest() {
   appWin.eval(appCode);
 
   // Give any pending async init a moment
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
 
   // Step 1: First-run create passphrase (too short and mismatch checks)
   console.log('Step 1: First-run create passphrase validation');
@@ -193,14 +193,14 @@ async function runPopupLifecycleTest() {
 
   // Attempt import without entering passphrase
   appDoc.getElementById('importBtn').click();
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
   assert.strictEqual(appDoc.getElementById('filePassRow').hidden, false, 'filePassRow should become visible');
   assert.ok(appDoc.getElementById('importOut').textContent.includes('This file is protected'), 'Should ask for passphrase');
 
   // Attempt import with wrong passphrase
   appDoc.getElementById('filePass').value = 'WrongFilePass!';
   appDoc.getElementById('importBtn').click();
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
   assert.ok(appDoc.getElementById('importOut').textContent.includes('Wrong passphrase'), 'Should reject wrong passphrase');
 
   // Attempt import with correct passphrase
@@ -266,7 +266,7 @@ async function runPopupLifecycleTest() {
   // Step 6: Lock clears the form
   console.log('Step 6: Lock clears the form');
   appDoc.getElementById('lockBtn').click();
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
   assert.strictEqual(appDoc.getElementById('lock').hidden, false, 'Lock screen should be visible');
   assert.strictEqual(appDoc.getElementById('appMain').hidden, true, 'App main should be hidden');
   assert.strictEqual(appDoc.getElementById('fullName').value, '', 'Form field fullName must be cleared on lock');
@@ -276,7 +276,7 @@ async function runPopupLifecycleTest() {
   console.log('Step 7: Wrong then right passphrase on unlock');
   appDoc.getElementById('pass').value = 'WrongPassword!';
   appDoc.getElementById('unlockBtn').click();
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
   assert.strictEqual(appDoc.getElementById('lockMsg').textContent, 'Wrong passphrase.');
 
   appDoc.getElementById('pass').value = masterPass;
@@ -290,7 +290,7 @@ async function runPopupLifecycleTest() {
   // Expire session
   mockChrome._sessionStorage.sahayakKey.until = Date.now() - 1000;
   appDoc.getElementById('fill').click();
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
   assert.strictEqual(appDoc.getElementById('lock').hidden, false, 'Should revert to lock screen when session expired');
   assert.ok(appDoc.getElementById('lockMsg').textContent.includes('Locked. Unlock to use your saved details.'));
 
@@ -339,7 +339,7 @@ async function runPopupLifecycleTest() {
   // Step 10: Delete all (wipe)
   console.log('Step 10: Delete all (wipe)');
   appDoc.getElementById('wipe').click();
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
   assert.strictEqual(mockChrome._localStorage.sahayakVault, undefined, 'Vault must be deleted from storage.local');
   assert.strictEqual(mockChrome._sessionStorage.sahayakKey, undefined, 'Session key must be deleted');
   assert.strictEqual(appDoc.getElementById('lock').hidden, false, 'Should return to setup screen');
@@ -373,7 +373,7 @@ async function runPopupLifecycleTest() {
   winMig.eval(profileIoCode);
   winMig.eval(autofillCode);
   winMig.eval(appCode);
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
 
   assert.strictEqual(winMig.document.getElementById('lockTitle').textContent, 'Create a passphrase');
   assert.ok(winMig.document.getElementById('lockNote').textContent.includes('Your details saved earlier will be encrypted with it'));
