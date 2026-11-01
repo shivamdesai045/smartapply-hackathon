@@ -86,7 +86,9 @@ class TestPhase3EvalHarness(unittest.TestCase):
 
     def test_04_run_eval_execution_and_report_output(self):
         """Verify run_eval completes and generates valid report dictionary and JSON."""
-        report = run_eval.run_evaluation(synth_fallback=True)
+        import tempfile
+        tmp_report = os.path.join(tempfile.gettempdir(), "test_eval_report.json")
+        report = run_eval.run_evaluation(report_path=tmp_report, synth_fallback=True)
         self.assertIn("total_documents", report)
         self.assertGreaterEqual(report["total_documents"], 60)
         self.assertIn("overall_accuracy_pct", report)
