@@ -95,3 +95,187 @@ def clean_extracted_name(name_str):
     if len(tokens) < 1:
         return None
     return cleaned
+
+
+# --------------------------------------------------------------------------- #
+# Hardened Address & Name Extraction / Validation (Urgent Hotfix)
+# --------------------------------------------------------------------------- #
+
+DISALLOWED_NAME_KEYWORDS = {
+    "certify", "certified", "that", "this", "board", "statement", "marks",
+    "certificate", "government", "school", "examination", "secondary",
+    "council", "republic", "india", "name", "candidate", "student",
+    "pupil", "examinee", "roll", "seat", "division", "signature",
+    "authority", "education", "state", "university", "department",
+    "institution", "college", "passing", "higher", "central", "delhi",
+    "maharashtra", "cbse", "icse", "ssc", "hsc", "grade", "result",
+    "total", "subject", "theory", "practical", "maximum", "obtained",
+    "permanent", "account", "income", "tax", "election", "commission",
+    "card", "identity", "union", "ministry", "official", "portal",
+    "pass", "passed", "fail", "failed", "distinction", "father", "mother",
+    "husband", "wife", "address", "gender", "male", "female", "transgender",
+    "issued", "date", "year", "session", "centre", "center", "regn", "no", "dob", "birth", "yob"
+}
+
+AADHAAR_NOTICE_KEYWORDS = {
+    "should be updated",
+    "after every 10 years",
+    "maadhaar",
+    "biometric",
+    "biometrics",
+    "download",
+    "entities",
+    "consent",
+    "uidai",
+    "helpline",
+    "toll free",
+    "1947",
+    "www.",
+    "http",
+    ".gov.in",
+    "proof of identity",
+    "not of citizenship",
+    "not a proof of citizenship",
+    "help@uidai",
+    "mera aadhaar",
+}
+
+def validate_person_name(candidate_str):
+    """
+    Validates that a string is a genuine human name:
+    - Enforces 2-5 tokens of letters.
+    - Each token length between 1 and 25 characters (with initials like 'S.').
+    - Rejects headings, board names, labels, and statutory text.
+    - Strictly preserves 'Kumar'.
+    """
+    if not candidate_str:
+        return None
+
+    s = str(candidate_str).strip()
+    s = re.split(r"[\r\n|;]", s)[0].strip()
+    # Strip common leading labels
+    s = re.sub(
+        r"^(?:Candidate(?:'s)?\s+(?:Full\s+)?Name|Student(?:'s)?\s+Name|Pupil(?:'s)?\s+Name|"
+        r"Name\s+of\s+Candidate|Full\s+Name|Elector(?:'s)?\s+Name|Name)\s*[:\-]?\s*",
+        "", s, flags=re.I
+    )
+    # Strip titles except Kumar (preserves Kumar Sanu / Rajesh Kumar)
+    s = re.sub(r"^(?:Mr|Mrs|Ms|Shri|Smt|Dr|Prof|Master)\.?\s+", "", s, flags=re.I)
+    s = re.sub(r"^Kumari\.?\s+", "", s, flags=re.I)
+
+    # Clean characters except letters, dots for initials, and spaces
+    s = re.sub(r"[^A-Za-z\s\.]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+
+    tokens = [t.strip(".") for t in s.split() if t.strip(".")]
+    if not (2 <= len(tokens) <= 5):
+        return None
+
+    for t in tokens:
+        if len(t) < 1 or len(t) > 25:
+            return None
+        if not t.isalpha():
+            return None
+
+    lower_tokens = [t.lower() for t in tokens]
+    if any(t in DISALLOWED_NAME_KEYWORDS for t in lower_tokens):
+        return None
+
+    return " ".join(t.capitalize() for t in tokens)
+
+
+def is_notice_or_garbage_line(line_text, min_confidence=None):
+    """Checks if a line contains statutory notice text or poor alphanumeric ratio."""
+    if not line_text:
+        return True
+    lt = line_text.lower().strip()
+    if any(kw in lt for kw in AADHAAR_NOTICE_KEYWORDS):
+        return True
+
+    alnum = re.findall(r"[A-Za-z0-9]", line_text)
+    total_len = len(line_text.strip())
+    if total_len == 0 or len(alnum) < 3:
+        return True
+    if len(alnum) / total_len < 0.40:
+        return True
+
+    return False
+
+
+def extract_clean_address(lines, text=None, max_lines=6):
+    """
+    Extracts an address starting at Address / C/O / S/O / D/O / W/O anchor
+    up to the 6-digit PIN code line (inclusive), maximum max_lines lines.
+    Drops notice keywords, poor-ratio lines, and low-confidence lines.
+    Returns: (cleaned_address_str, confidence, needs_review)
+    """
+    if not lines and text:
+        lines = [{"text": l.strip(), "confidence": 100.0} for l in text.splitlines() if l.strip()]
+    elif lines:
+        norm_lines = []
+        for l in lines:
+            if isinstance(l, str):
+                norm_lines.append({"text": l.strip(), "confidence": 100.0})
+            elif isinstance(l, dict):
+                norm_lines.append(l)
+        lines = norm_lines
+
+    if not lines:
+        return None, 0.0, True
+
+    start_idx = None
+
+    # Find starting anchor
+    for idx, line in enumerate(lines):
+        lt = line.get("text", "")
+        if re.search(r"\b(?:Address|C/O|S/O|D/O|W/O|Care\s+of|Son\s+of|Daughter\s+of|Wife\s+of|पत्ता|पता|निवास)\b", lt, re.I):
+            start_idx = idx
+            break
+
+    if start_idx is None:
+        # Fallback: line containing 6-digit PIN
+        for idx, line in enumerate(lines):
+            lt = line.get("text", "")
+            if re.search(r"\b[1-9]\d{5}\b", lt) and not is_notice_or_garbage_line(lt):
+                start_idx = max(0, idx - 2)
+                break
+
+    if start_idx is None:
+        return None, 0.0, True
+
+    collected_lines = []
+    found_pin = False
+
+    for curr_idx in range(start_idx, min(len(lines), start_idx + max_lines)):
+        curr_line = lines[curr_idx]
+        curr_text = curr_line.get("text", "").strip()
+
+        line_conf = curr_line.get("confidence", 100.0)
+        if line_conf < 35.0:
+            continue
+
+        if is_notice_or_garbage_line(curr_text):
+            continue
+
+        if curr_idx == start_idx:
+            cleaned_start = re.sub(r"^(?:Address|पत्ता|पता|निवास)\s*[:\-]?\s*", "", curr_text, flags=re.I).strip()
+            if cleaned_start:
+                collected_lines.append(cleaned_start)
+        else:
+            collected_lines.append(curr_text)
+
+        if re.search(r"\b[1-9]\d{5}\b", curr_text):
+            found_pin = True
+            break
+
+    if not collected_lines:
+        return None, 0.0, True
+
+    combined = ", ".join(collected_lines)
+    combined = re.sub(r"\s+", " ", combined).strip(" ,/-.:;")
+
+    tokens = combined.split()
+    if len(tokens) < 3 or not found_pin:
+        return combined if len(tokens) >= 3 else None, 0.50 if len(tokens) >= 3 else 0.0, True
+
+    return combined, 0.95, False

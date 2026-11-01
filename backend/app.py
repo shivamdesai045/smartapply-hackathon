@@ -320,6 +320,9 @@ def get_checklist_status(service_name):
                 "docAddress": req_progress["docAddress"],
                 "docNumber": req_progress.get("docNumber"),
                 "manuallyEdited": req_progress.get("manuallyEdited", False),
+                "fieldConfidence": req_progress.get("fieldConfidence", {}),
+                "fieldConfidences": req_progress.get("fieldConfidence", {}),
+                "needsReview": req_progress.get("needsReview", {}),
             }
         )
 
@@ -327,7 +330,16 @@ def get_checklist_status(service_name):
     total_count = len(status_list)
     user_id = session.get("user_id")
     docs_with_data = db.get_documents_with_data(session_id, service_name, variant, user_id=user_id)
-    comparable_count = len(docs_with_data)
+    comparable_count = min(len(docs_with_data), total_count)
+
+    # Ready counter: only uploaded items where required fields are verified or manually edited
+    ready_count = sum(
+        1 for s in status_list
+        if s["uploaded"] and not s.get("skipped") and (
+            s.get("manuallyEdited") or (s.get("docName") and not any(s.get("needsReview", {}).values()))
+        )
+    )
+    ready_count = min(ready_count, total_count)
 
     return jsonify(
         {
@@ -338,6 +350,7 @@ def get_checklist_status(service_name):
             "status": status_list,
             "uploadedCount": uploaded_count,
             "comparableCount": comparable_count,
+            "readyCount": ready_count,
             "totalCount": total_count,
             "complete": uploaded_count == total_count,
             "servicePortal": get_service_portal(service_name),
@@ -427,10 +440,20 @@ def upload_checklist_file(service_name):
 
     user_id = session.get("user_id")
 
+    doc_meta_payload = {
+        **(ocr_fields.get("doc_meta") or {}),
+        "fieldConfidence": ocr_fields.get("fieldConfidence", {}),
+        "fieldConfidences": ocr_fields.get("fieldConfidence", {}),
+        "needsReview": ocr_fields.get("needsReview", {}),
+        "quality": ocr_fields.get("quality"),
+        "detectedType": ocr_fields.get("detectedType"),
+        "documentTypeWarning": ocr_fields.get("documentTypeWarning"),
+    }
+
     db.mark_uploaded(
         session_id, service_name, variant, requirement, chosen_option, final_path,
         doc_name=doc_name, doc_dob=doc_dob, doc_address=doc_address, doc_number=doc_number,
-        raw_text=raw_text, user_id=user_id,
+        raw_text=raw_text, user_id=user_id, doc_meta=doc_meta_payload,
     )
 
     return jsonify(
@@ -622,10 +645,19 @@ def rescan_checklist_file(service_name):
     chosen_opt = (progress.get(requirement) or {}).get("chosenOption")
 
     fresh = extract_fields(real_path, os.path.basename(real_path), chosen_option=chosen_opt)
+    fresh_meta = {
+        **(fresh.get("doc_meta") or {}),
+        "fieldConfidence": fresh.get("fieldConfidence", {}),
+        "fieldConfidences": fresh.get("fieldConfidence", {}),
+        "needsReview": fresh.get("needsReview", {}),
+        "quality": fresh.get("quality"),
+        "detectedType": fresh.get("detectedType"),
+        "documentTypeWarning": fresh.get("documentTypeWarning"),
+    }
     db.update_fields(
         session_id, service_name, variant, requirement,
         fresh.get("name"), fresh.get("dob"), fresh.get("address"), fresh.get("doc_number"),
-        raw_text=fresh.get("raw_text"), manually_edited=False, user_id=user_id
+        raw_text=fresh.get("raw_text"), manually_edited=False, user_id=user_id, doc_meta=fresh_meta
     )
     return jsonify({
         "message": "Document rescanned successfully",

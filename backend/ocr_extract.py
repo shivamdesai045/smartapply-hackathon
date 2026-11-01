@@ -422,42 +422,13 @@ def clean_person_name(candidate):
     """
     Cleans up a candidate name string and verifies it represents a human name.
     Preserves 'Kumar' in general Indian names; removes only honorific titles.
-    Strictly rejects marksheet subjects, academic headers, and non-name terms.
+    Strictly rejects headings, marksheet subjects, academic headers, and non-name terms.
+    Enforces 2-5 tokens of letters, reasonable token length.
     """
     if not candidate:
         return None
-
-    # Strip prefixes and labels
-    candidate = re.sub(r"^(?:candidate(?:'s)?\s+(?:full\s+)?name|name\s+of\s+(?:the\s+)?candidate|student(?:'s)?\s+name|pupil(?:'s)?\s+name)\s*[:\-]?\s*", "", candidate, flags=re.I)
-    candidate = re.sub(r"^(?:full\s+name|name|elector(?:'s)?\s+name)\s*[:\-]?\s*", "", candidate, flags=re.I)
-    # Strip titles: mr, mrs, ms, shri, smt, dr, prof (Do NOT strip Kumar in general)
-    candidate = re.sub(r"^(?:mr|mrs|ms|shri|smt|dr|prof)\.?\s+", "", candidate, flags=re.I)
-    candidate = re.sub(r"^kumari\.?\s+", "", candidate, flags=re.I)
-    # Remove digits and special characters
-    candidate = re.sub(r"[^A-Za-z\s]", " ", candidate)
-    candidate = re.sub(r"\s+", " ", candidate).strip()
-
-    words = candidate.split()
-    NUMBER_AND_NOISE_WORDS = {
-        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
-        "first", "second", "third", "surname", "last", "lang", "sub", "ss", "pass", "fail",
-        "mr", "mrs", "ms", "shri", "smt"
-    }
-    while len(words) > 1 and words[-1].lower() in NUMBER_AND_NOISE_WORDS:
-        words.pop()
-    while len(words) > 1 and words[0].lower() in NUMBER_AND_NOISE_WORDS:
-        words.pop(0)
-
-    if not (1 <= len(words) <= 5):
-        return None
-    if not any(len(w) >= 2 for w in words):
-        return None
-
-    for w in words:
-        if w.lower() in NON_NAME_KEYWORDS:
-            return None
-
-    return " ".join(words).title()
+    from parsers.base import validate_person_name
+    return validate_person_name(candidate)
 
 
 def guess_name(text, chosen_option=None):
@@ -466,6 +437,26 @@ def guess_name(text, chosen_option=None):
     Extracts a name ONLY when verified by document structure or explicit label.
     """
     lines = [l.strip() for l in text.splitlines() if l.strip()]
+
+    # 0. Priority: Marksheet / Certificate 'certify that' anchor
+    cert_anchor = re.compile(
+        r"(?:this\s+is\s+to\s+)?certif(?:y|ied)\s+that|"
+        r"प्रमाणित\s*(?:किया\s*जाता\s*है|करण्यात\s*येते)\s*कि|"
+        r"प्रमाणित\s*करण्यात\s*येते\s*की",
+        re.I
+    )
+    for i, line in enumerate(lines):
+        m_cert = cert_anchor.search(line)
+        if m_cert:
+            same_line = line[m_cert.end():].strip()
+            same_line = re.sub(r"^[\s:\-,./]+", "", same_line)
+            cand = clean_person_name(same_line)
+            if cand:
+                return cand
+            for next_idx in range(i + 1, min(len(lines), i + 3)):
+                next_cand = clean_person_name(lines[next_idx].strip())
+                if next_cand:
+                    return next_cand
 
     # 1. Pattern: Marksheet / Student / Candidate Name
     cand_label_regex = re.compile(
@@ -687,6 +678,10 @@ def clean_address(addr):
 
 def guess_address(text):
     """Extracts genuine address text from Indian documents."""
+    from parsers.base import extract_clean_address
+    addr, conf, nr = extract_clean_address(text.splitlines(), text, max_lines=6)
+    if addr:
+        return addr
     lines = [l.strip() for l in text.splitlines() if l.strip()]
 
     # 1. Pattern: Address block starting with 'Address:'
@@ -1065,8 +1060,22 @@ def extract_fields(file_path, original_filename, chosen_option=None):
         "documentTypeWarning": doc_warning,
         "detectedType": detected_type or parsed.get("doc_meta", {}).get("detectedType"),
     }
-    if parsed.get("field_confidences"):
-        res["fieldConfidences"] = parsed["field_confidences"]
+    field_confs = parsed.get("field_confidences", {})
+    needs_rev = parsed.get("needs_review", {})
+    for fld in ["name", "dob", "address", "doc_number"]:
+        v = res.get(fld)
+        if fld not in field_confs:
+            field_confs[fld] = 0.85 if v else 0.0
+        c = field_confs.get(fld, 0.0)
+        if not v or c < 0.70 or needs_rev.get(fld) is True:
+            needs_rev[fld] = True
+        else:
+            needs_rev[fld] = False
+
+    res["fieldConfidence"] = field_confs
+    res["fieldConfidences"] = field_confs
+    res["needsReview"] = needs_rev
+
     if ocr_data:
         res["boxes"] = ocr_data.get("words", [])
         res["lines"] = ocr_data.get("lines", [])

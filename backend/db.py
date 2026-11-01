@@ -191,6 +191,10 @@ def get_progress(session_id, service, variant, user_id=None):
             "rawText": row.get("raw_text"),
             "manuallyEdited": bool(row.get("manually_edited")),
             "skipped": bool(meta.get("skipped") or row.get("file_path") == "SKIPPED"),
+            "fieldConfidence": meta.get("fieldConfidence", {}),
+            "fieldConfidences": meta.get("fieldConfidence", {}),
+            "needsReview": meta.get("needsReview", {}),
+            "docMeta": meta,
         }
     return res
 
@@ -361,7 +365,7 @@ def get_documents_with_data(session_id, service, variant, user_id=None):
     return documents
 
 def update_fields(session_id, service, variant, requirement, doc_name, doc_dob, doc_address,
-                  doc_number=None, raw_text=None, manually_edited=True, user_id=None):
+                  doc_number=None, raw_text=None, manually_edited=True, user_id=None, doc_meta=None):
     """Updates the typed/OCR'd metadata for an already-uploaded item."""
     raw_doc_num_str = None
     if isinstance(doc_number, dict):
@@ -374,6 +378,12 @@ def update_fields(session_id, service, variant, requirement, doc_name, doc_dob, 
 
     # Data minimisation: raw OCR text is never stored in DB
     stored_raw_text = None
+    doc_meta_str = json.dumps(doc_meta) if isinstance(doc_meta, dict) else (doc_meta or None)
+    if doc_meta is None and manually_edited:
+        doc_meta_str = json.dumps({
+            "fieldConfidence": {"name": 1.0, "dob": 1.0, "address": 1.0, "doc_number": 1.0},
+            "needsReview": {"name": False, "dob": False, "address": False, "doc_number": False}
+        })
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -385,11 +395,12 @@ def update_fields(session_id, service, variant, requirement, doc_name, doc_dob, 
                         doc_number = COALESCE(%s, doc_number),
                         doc_number_hash = COALESCE(%s, doc_number_hash),
                         raw_text = COALESCE(%s, raw_text),
-                        manually_edited = %s
+                        manually_edited = %s,
+                        doc_meta = COALESCE(%s, doc_meta)
                     WHERE user_id = %s AND service = %s AND variant = %s AND requirement = %s
                     """,
                     (doc_name, doc_dob, doc_address, masked_doc_num_str, doc_number_hash,
-                     stored_raw_text, manually_edited, user_id, service, variant, requirement),
+                     stored_raw_text, manually_edited, doc_meta_str, user_id, service, variant, requirement),
                 )
             else:
                 cur.execute(
@@ -399,11 +410,12 @@ def update_fields(session_id, service, variant, requirement, doc_name, doc_dob, 
                         doc_number = COALESCE(%s, doc_number),
                         doc_number_hash = COALESCE(%s, doc_number_hash),
                         raw_text = COALESCE(%s, raw_text),
-                        manually_edited = %s
+                        manually_edited = %s,
+                        doc_meta = COALESCE(%s, doc_meta)
                     WHERE session_id = %s AND service = %s AND variant = %s AND requirement = %s
                     """,
                     (doc_name, doc_dob, doc_address, masked_doc_num_str, doc_number_hash,
-                     stored_raw_text, manually_edited, session_id, service, variant, requirement),
+                     stored_raw_text, manually_edited, doc_meta_str, session_id, service, variant, requirement),
                 )
         conn.commit()
 

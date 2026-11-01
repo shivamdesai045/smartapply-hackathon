@@ -39,26 +39,40 @@ def get_available_tesseract_languages():
     except Exception:
         return {"eng"}
 
-def get_ocr_language_string():
+def check_missing_languages(verbose=False):
     """
-    Returns '+'-separated languages string.
-    Uses 'eng+hin+mar' if installed, else available subset, defaulting to 'eng'.
+    Returns list of desired language files not yet installed.
+    Prints location where to place missing traineddata on Windows.
     """
-    installed = get_available_tesseract_languages()
-    desired = ["eng", "hin", "mar"]
-    available = [l for l in desired if l in installed]
-    if available:
-        return "+".join(available)
-    return "eng"
-
-def check_missing_languages():
-    """Returns list of desired language files not yet installed."""
     installed = get_available_tesseract_languages()
     missing = []
     for l in ["hin", "mar"]:
         if l not in installed:
             missing.append(f"{l}.traineddata")
+    if missing and verbose:
+        import logging
+        tessdata_dir = os.environ.get("TESSDATA_PREFIX", r"C:\Program Files\Tesseract-OCR\tessdata")
+        msg = f"[OCR WARNING] Missing language packs: {', '.join(missing)}. For Hindi/Marathi OCR, place them in: {tessdata_dir}"
+        logging.warning(msg)
+        print(msg)
     return missing
+
+def get_ocr_language_string():
+    """
+    Returns '+'-separated languages string.
+    Uses 'eng+hin+mar' when installed.
+    Otherwise falls back to 'eng' and logs a warning with the tessdata install path.
+    Never logs document content.
+    """
+    installed = get_available_tesseract_languages()
+    missing = check_missing_languages(verbose=True)
+    desired = ["eng", "hin", "mar"]
+    available = [l for l in desired if l in installed]
+    if "eng" in available and len(available) == 3:
+        return "eng+hin+mar"
+    elif available:
+        return "+".join(available)
+    return "eng"
 
 # --------------------------------------------------------------------------- #
 # Image Preprocessing & Variant Selection

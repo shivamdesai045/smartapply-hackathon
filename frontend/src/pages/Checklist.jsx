@@ -256,12 +256,32 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
     }
   };
 
+  const fieldConfs = reqData.fieldConfidence || (lastOcr && (lastOcr.fieldConfidence || lastOcr.fieldConfidences)) || {};
+  const needsRev = reqData.needsReview || (lastOcr && lastOcr.needsReview) || {};
+
+  const isFieldUnverified = (field, val) => {
+    if (!val) return true;
+    if (needsRev && needsRev[field] === true) return true;
+    const conf = fieldConfs && fieldConfs[field];
+    if (typeof conf === "number" && conf > 0 && conf < 0.70) return true;
+    return false;
+  };
+
   const ocrInfo = lastOcr || (reqData.uploaded ? {
     name: reqData.docName,
     dob: reqData.docDob,
     address: reqData.docAddress,
     doc_number: reqData.docNumber ? { type: "ID", number: reqData.docNumber } : null,
   } : null);
+
+  const hasUnverifiedRequired = !isPhotoSig && !isSkipped && reqData.uploaded && !reqData.manuallyEdited && (
+    !ocrInfo ||
+    !ocrInfo.name ||
+    isFieldUnverified("name", ocrInfo.name) ||
+    (ocrInfo.dob && isFieldUnverified("dob", ocrInfo.dob)) ||
+    (ocrInfo.address && isFieldUnverified("address", ocrInfo.address)) ||
+    (needsRev && Object.values(needsRev).some((v) => v === true))
+  );
 
   const foundNothing = ocrInfo && !ocrInfo.name && !ocrInfo.dob && !ocrInfo.address && !ocrInfo.doc_number;
   const viewUrl = reqData.filePath && reqData.filePath !== "SKIPPED" ? getChecklistFileUrl(serviceName, sessionId, variant, reqData.requirement) : null;
@@ -300,10 +320,23 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm">
       <div className="flex items-start gap-3 mb-3">
-        <span className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
-          reqData.uploaded ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300" : "bg-gray-100 dark:bg-gray-700 text-gray-400"
-        }`}>
-          {reqData.uploaded ? "✓" : ""}
+        <span
+          className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
+            !reqData.uploaded
+              ? "bg-gray-100 dark:bg-gray-700 text-gray-400"
+              : hasUnverifiedRequired
+              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-300"
+              : "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
+          }`}
+          title={
+            !reqData.uploaded
+              ? "Not uploaded"
+              : hasUnverifiedRequired
+              ? "Fields need verification or review"
+              : "All fields verified"
+          }
+        >
+          {!reqData.uploaded ? "" : hasUnverifiedRequired ? "⚠" : "✓"}
         </span>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -480,12 +513,46 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
             {!notSupported && !foundNothing && (
               <>
                 <span className="font-semibold text-brand-700 dark:text-brand-400">OCR Extracted: </span>
-                {ocrInfo.name && <span className="mr-2"><strong>Name:</strong> {ocrInfo.name}</span>}
-                {ocrInfo.dob && <span className="mr-2"><strong>DOB:</strong> {ocrInfo.dob}</span>}
-                {ocrInfo.address && <span className="mr-2"><strong>Address:</strong> {ocrInfo.address}</span>}
+                {ocrInfo.name && (
+                  <span className="mr-2 inline-flex items-center gap-1">
+                    <strong>Name:</strong> {ocrInfo.name}
+                    {isFieldUnverified("name", ocrInfo.name) && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
+                        ⚠ Please verify
+                      </span>
+                    )}
+                  </span>
+                )}
+                {ocrInfo.dob && (
+                  <span className="mr-2 inline-flex items-center gap-1">
+                    <strong>DOB:</strong> {ocrInfo.dob}
+                    {isFieldUnverified("dob", ocrInfo.dob) && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
+                        ⚠ Please verify
+                      </span>
+                    )}
+                  </span>
+                )}
+                {ocrInfo.address && (
+                  <span className="mr-2 inline-flex items-center gap-1">
+                    <strong>Address:</strong> {ocrInfo.address}
+                    {isFieldUnverified("address", ocrInfo.address) && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
+                        ⚠ Please verify
+                      </span>
+                    )}
+                  </span>
+                )}
                 {ocrInfo.doc_number && (
-                  <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-mono text-[11px]">
-                    {ocrInfo.doc_number.type || "ID"}: {maskAadhaar(ocrInfo.doc_number.number)}
+                  <span className="mr-2 inline-flex items-center gap-1">
+                    <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-mono text-[11px]">
+                      {ocrInfo.doc_number.type || "ID"}: {maskAadhaar(ocrInfo.doc_number.number)}
+                    </span>
+                    {isFieldUnverified("doc_number", ocrInfo.doc_number.number) && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
+                        ⚠ Please verify
+                      </span>
+                    )}
                   </span>
                 )}
               </>
@@ -768,9 +835,10 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
     totalComparisons: 0,
   };
 
-  const isVerified = data?.verificationStatus === "verified";
+  const anyUnverifiedFields = (data?.unverifiedFieldCount && data?.unverifiedFieldCount > 0) || !data?.clean;
+  const isVerified = data?.verificationStatus === "verified" && !anyUnverifiedFields;
   const isPartial = data?.verificationStatus === "partially_verified";
-  const isNotVerified = data?.verificationStatus === "not_verified" || (data && !isVerified && !isPartial && (summary.mismatches === 0 && summary.possibleMismatches === 0));
+  const isNotVerified = !isVerified && !isPartial && (data?.verificationStatus === "not_verified" || anyUnverifiedFields || (summary.mismatches === 0 && summary.possibleMismatches === 0));
   const _hasIssues = !isVerified && !isPartial && !isNotVerified;
 
   const getResultBadge = (result) => {
@@ -1468,9 +1536,10 @@ function Checklist() {
   }
 
   const reqList = checklistData?.requirements || checklistData?.status || [];
-  const uploadedCount = checklistData?.uploadedCount ?? reqList.filter((r) => r.uploaded).length;
-  const comparableCount = checklistData?.comparableCount ?? 0;
   const totalCount = checklistData?.totalCount ?? reqList.length;
+  const uploadedCount = Math.min(checklistData?.uploadedCount ?? reqList.filter((r) => r.uploaded).length, totalCount);
+  const comparableCount = Math.min(checklistData?.comparableCount ?? 0, totalCount);
+  const readyCount = Math.min(checklistData?.readyCount ?? comparableCount, totalCount);
 
   if (step === "mismatch" && selectedVariant) {
     return (
@@ -1585,7 +1654,7 @@ function Checklist() {
                 : "Check documents for mismatches"
             }
           >
-            Check Mismatches ({Math.min(comparableCount, 2)}/2 ready) →
+            Check Mismatches ({Math.min(comparableCount, Math.min(2, totalCount))}/{Math.min(2, totalCount)} ready) →
           </button>
         </div>
       </div>
