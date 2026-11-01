@@ -6,6 +6,7 @@ from datetime import datetime
 import pytesseract
 from PIL import Image, ImageFilter, ImageOps, ImageEnhance
 import ocr_boxes
+import parsers
 
 # Ensure Tesseract executable path on Windows
 if shutil.which("tesseract") is None:
@@ -1044,20 +1045,28 @@ def extract_fields(file_path, original_filename, chosen_option=None):
     if doc_warning:
         doc_meta["documentTypeWarning"] = doc_warning
 
+    parsed = {}
+    try:
+        parsed = parsers.parse_document(ocr_data or {"text": text}, chosen_option=chosen_option)
+    except Exception:
+        parsed = {}
+
     res = {
-        "name": guess_name(text, chosen_option=chosen_option),
-        "dob": guess_dob(text),
-        "address": guess_address(text),
-        "doc_number": guess_doc_number(text),
-        "father_name": guess_parent_name(text, "father"),
-        "mother_name": guess_parent_name(text, "mother"),
-        "doc_meta": doc_meta,
+        "name": parsed.get("name") or guess_name(text, chosen_option=chosen_option),
+        "dob": parsed.get("dob") or guess_dob(text),
+        "address": parsed.get("address") or guess_address(text),
+        "doc_number": parsed.get("doc_number") or guess_doc_number(text),
+        "father_name": parsed.get("father_name") or guess_parent_name(text, "father"),
+        "mother_name": parsed.get("mother_name") or guess_parent_name(text, "mother"),
+        "doc_meta": {**doc_meta, **parsed.get("doc_meta", {})},
         "raw_text": text,
         "ocrAttempted": True,
         "quality": quality,
         "documentTypeWarning": doc_warning,
-        "detectedType": detected_type,
+        "detectedType": detected_type or parsed.get("doc_meta", {}).get("detectedType"),
     }
+    if parsed.get("field_confidences"):
+        res["fieldConfidences"] = parsed["field_confidences"]
     if ocr_data:
         res["boxes"] = ocr_data.get("words", [])
         res["lines"] = ocr_data.get("lines", [])
