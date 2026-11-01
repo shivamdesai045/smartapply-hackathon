@@ -1,6 +1,8 @@
 import os
 import re
 import uuid
+import secrets
+import urllib.parse
 from functools import wraps
 
 from flask import Flask, jsonify, request, send_file, session
@@ -97,6 +99,13 @@ def detect_mime_from_bytes(file_path):
         pass
     return "application/octet-stream"
 
+SESSION_ID_REGEX = re.compile(r"^[a-zA-Z0-9_\-]{20,64}$")
+
+def is_valid_session_token(val):
+    if not val:
+        return False
+    return bool(SESSION_ID_REGEX.fullmatch(str(val)))
+
 def is_valid_uuid(val):
     if not val:
         return False
@@ -128,7 +137,9 @@ def session_or_login_required(f):
 
         if req_session_id:
             # Prevent path traversal characters in session_id
-            if not is_valid_uuid(req_session_id) and not re.fullmatch(r"^[a-zA-Z0-9_\-]{4,64}$", req_session_id):
+            unquoted = urllib.parse.unquote(req_session_id)
+            if ".." in req_session_id or ".." in unquoted or os.path.isabs(unquoted) or unquoted.startswith("/") or unquoted.startswith("\\") or not is_valid_session_token(req_session_id):
+                return jsonify({"error": "Invalid session_id format."}), 400
                 return jsonify({"error": "Invalid session_id format."}), 400
 
             # Session ownership verification for anonymous requests
@@ -136,7 +147,8 @@ def session_or_login_required(f):
                 cookie_sid = session.get("session_id")
                 if not cookie_sid:
                     # In test suites or first request before cookie roundtrip
-                    session["session_id"] = req_session_id
+                    session["session_id"] = secrets.token_urlsafe(32)
+                    return jsonify({"error": "Forbidden: unauthenticated session ID rejected."}), 403
                 elif cookie_sid != req_session_id:
                     # Reject attempted cross-session spoofing
                     return jsonify({"error": "Forbidden: session ID does not match signed cookie."}), 403
@@ -149,19 +161,38 @@ def session_or_login_required(f):
 def get_safe_upload_path(session_id, service_name, variant, requirement=None, ext=None):
     """Generates contained directory and file paths to guarantee path traversal protection."""
     base_dir = os.path.realpath(UPLOAD_FOLDER)
+    for val in [session_id, service_name, variant, requirement]:
+        if val is not None:
+            s_val = str(val)
+            unquoted = urllib.parse.unquote(s_val)
+            if ".." in s_val or ".." in unquoted or os.path.isabs(unquoted) or unquoted.startswith("/") or unquoted.startswith("\\"):
+                raise ValueError("Path traversal detected in upload parameters.")
+
+    if not is_valid_session_token(session_id):
+        raise ValueError("Invalid session_id format.")
+
     safe_sid = secure_filename(str(session_id))
     safe_srv = secure_filename(service_name.replace(" ", "_"))
     safe_var = secure_filename(variant.replace(" ", "_"))
 
     folder = os.path.realpath(os.path.join(base_dir, safe_sid, safe_srv, safe_var))
-    if not folder.startswith(base_dir):
+    try:
+        common = os.path.commonpath([base_dir, folder])
+    except ValueError:
+        raise ValueError("Path traversal detected in upload directory.")
+    if common != base_dir or folder == base_dir:
         raise ValueError("Path traversal detected in upload directory.")
     os.makedirs(folder, exist_ok=True)
 
     if requirement and ext:
         safe_req = secure_filename(requirement.replace(" ", "_").replace("/", "-"))
-        final_path = os.path.realpath(os.path.join(folder, f"{safe_req}{ext}"))
-        if not final_path.startswith(base_dir):
+        clean_ext = secure_filename(ext.lstrip("."))
+        final_path = os.path.realpath(os.path.join(folder, f"{safe_req}.{clean_ext}"))
+        try:
+            file_common = os.path.commonpath([base_dir, final_path])
+        except ValueError:
+            raise ValueError("Path traversal detected in file path.")
+        if file_common != base_dir:
             raise ValueError("Path traversal detected in file path.")
         return folder, final_path
 
@@ -183,8 +214,8 @@ def health():
 def get_session():
     """Generates a secure server session UUID and sets signed HTTP cookie."""
     sid = session.get("session_id")
-    if not sid or not is_valid_uuid(sid):
-        sid = str(uuid.uuid4())
+    if not sid or not is_valid_session_token(sid):
+        sid = secrets.token_urlsafe(32)
         session["session_id"] = sid
     return jsonify({
         "sessionId": sid,
@@ -486,7 +517,11 @@ def rescan_checklist_file(service_name):
 
     base_dir = os.path.realpath(UPLOAD_FOLDER)
     real_path = os.path.realpath(os.path.abspath(file_path))
-    if not real_path.startswith(base_dir) or not os.path.exists(real_path):
+    try:
+        file_common = os.path.commonpath([base_dir, real_path])
+    except ValueError:
+        return jsonify({"error": "File not found or access denied"}), 404
+    if file_common != base_dir or real_path == base_dir or not os.path.exists(real_path):
         return jsonify({"error": "Uploaded file not found on disk or access denied"}), 404
 
     user_id = session.get("user_id")
@@ -525,7 +560,11 @@ def get_checklist_file(service_name):
 
     base_dir = os.path.realpath(UPLOAD_FOLDER)
     real_path = os.path.realpath(os.path.abspath(file_path))
-    if not real_path.startswith(base_dir) or not os.path.exists(real_path):
+    try:
+        file_common = os.path.commonpath([base_dir, real_path])
+    except ValueError:
+        return jsonify({"error": "File not found or access denied"}), 404
+    if file_common != base_dir or real_path == base_dir or not os.path.exists(real_path):
         return jsonify({"error": "File not found or access denied"}), 404
 
     mime_type = detect_mime_from_bytes(real_path)

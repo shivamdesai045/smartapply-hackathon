@@ -18,8 +18,10 @@ class TestPhase1Security(unittest.TestCase):
         data = res.get_json()
         self.assertIn("sessionId", data)
         # Verify it parses as a standard UUID
-        parsed_uuid = uuid.UUID(data["sessionId"])
-        self.assertEqual(str(parsed_uuid), data["sessionId"])
+        sid = data["sessionId"]
+        self.assertTrue(len(sid) >= 32)
+        import re
+        self.assertTrue(bool(re.fullmatch(r"^[a-zA-Z0-9_\-]+$", sid)))
 
     def test_02_session_ownership_enforcement_rejects_spoofing(self):
         # Establish a valid session
@@ -37,7 +39,23 @@ class TestPhase1Security(unittest.TestCase):
         self.assertEqual(res_valid.status_code, 200)
 
     def test_03_invalid_session_id_format_rejected(self):
-        res = self.client.get("/api/checklist/Passport/status?session_id=../../bad_path")
+        res1 = self.client.get("/api/checklist/Passport/status?session_id=../../bad_path")
+        self.assertEqual(res1.status_code, 400)
+        self.assertIn("Invalid session_id", res1.get_json().get("error", ""))
+
+        res2 = self.client.get("/api/checklist/Passport/status?session_id=../")
+        self.assertEqual(res2.status_code, 400)
+
+        res3 = self.client.get("/api/checklist/Passport/status?session_id=/etc/passwd")
+        self.assertEqual(res3.status_code, 400)
+
+        res4 = self.client.get(r"/api/checklist/Passport/status?session_id=C:\windows\system32")
+        self.assertEqual(res4.status_code, 400)
+
+        res5 = self.client.get("/api/checklist/Passport/status?session_id=%2e%2e%2f%2e%2e%2fetc%2fpasswd")
+        self.assertEqual(res5.status_code, 400)
+
+        res = self.client.get("/api/checklist/Passport/status?session_id=..%2fsecret")
         self.assertEqual(res.status_code, 400)
         self.assertIn("Invalid session_id", res.get_json().get("error", ""))
 
