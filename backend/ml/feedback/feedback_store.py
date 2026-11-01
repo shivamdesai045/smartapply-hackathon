@@ -202,13 +202,18 @@ def record_feedback(
     sanitized_orig = {}
     diffs = {}
 
+    RAW_TEXT_KEYS = {"raw_text", "rawText", "text", "raw_ocr", "rawOCR"}
     for k, v in (corrected_fields or {}).items():
+        if k in RAW_TEXT_KEYS:
+            continue
         orig_v = (original_fields or {}).get(k)
         if str(v or "").strip() != str(orig_v or "").strip():
             diffs[k] = {"from": mask_sensitive_value(k, orig_v), "to": mask_sensitive_value(k, v)}
         sanitized_corr[k] = mask_sensitive_value(k, v)
 
     for k, v in (original_fields or {}).items():
+        if k in RAW_TEXT_KEYS:
+            continue
         sanitized_orig[k] = mask_sensitive_value(k, v)
 
     # If no changes and no explicit correction recorded, skip unless file has labels

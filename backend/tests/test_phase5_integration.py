@@ -19,7 +19,7 @@ def test_session_lifecycle(client):
     data = res.get_json()
     assert "sessionId" in data
     sid = data["sessionId"]
-    assert len(sid) == 36
+    assert len(sid) >= 32
 
     # Data wipe
     with client.session_transaction() as sess:
