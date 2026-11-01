@@ -206,6 +206,7 @@ def build_issue_key(field, doc_a, doc_b):
     return f"{field}::{parts[0]}|{parts[1]}"
 
 
+@app.route("/health", methods=["GET"])
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "message": "Sahayak backend is running"})
