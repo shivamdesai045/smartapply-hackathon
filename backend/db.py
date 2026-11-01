@@ -4,8 +4,10 @@ import hmac
 import hashlib
 import json
 import shutil
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
+
 import psycopg2
 from psycopg2.pool import ThreadedConnectionPool
 from psycopg2.extras import RealDictCursor
@@ -14,17 +16,125 @@ from dotenv import load_dotenv
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(dotenv_path=env_path)
 DATABASE_URL = os.getenv("DATABASE_URL")
+USE_SQLITE = False
 
 _pool = None
 
+
+class SQLiteCursorAdapter:
+    def __init__(self, cursor, as_dict=False):
+        self._cursor = cursor
+        self._as_dict = as_dict
+
+    def execute(self, sql, params=None):
+        self._cursor.execute(_sqlite_sql(sql), params or ())
+        return self
+
+    def executemany(self, sql, params_seq):
+        self._cursor.executemany(_sqlite_sql(sql), params_seq)
+        return self
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        if row is None:
+            return None
+        return _sqlite_row_to_python(row, self._cursor.description, self._as_dict)
+
+    def fetchall(self):
+        rows = self._cursor.fetchall()
+        if not rows:
+            return []
+        return [_sqlite_row_to_python(row, self._cursor.description, self._as_dict) for row in rows]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self._cursor.close()
+        return False
+
+    @property
+    def description(self):
+        return self._cursor.description
+
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    @property
+    def lastrowid(self):
+        return self._cursor.lastrowid
+
+
+class SQLiteConnectionAdapter:
+    def __init__(self, conn):
+        self._conn = conn
+        self.autocommit = False
+
+    def cursor(self, cursor_factory=None):
+        cursor = self._conn.cursor()
+        as_dict = cursor_factory is not None
+        return SQLiteCursorAdapter(cursor, as_dict=as_dict)
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
+def _sqlite_sql(sql):
+    return re.sub(r"%s", "?", sql)
+
+
+def _sqlite_row_to_python(row, description, as_dict=False):
+    if not as_dict:
+        return row
+    if not description:
+        return {}
+    return {col[0]: value for col, value in zip(description, row)}
+
+
+def _database_is_available():
+    global USE_SQLITE
+    if not DATABASE_URL:
+        USE_SQLITE = True
+        return False
+    try:
+        conn = psycopg2.connect(DATABASE_URL, connect_timeout=2)
+        conn.close()
+        USE_SQLITE = False
+        return True
+    except Exception:
+        USE_SQLITE = True
+        return False
+
+
+_database_is_available()
+
+
 def get_pool():
     global _pool
+    if USE_SQLITE:
+        return None
     if _pool is None:
         _pool = ThreadedConnectionPool(minconn=1, maxconn=20, dsn=DATABASE_URL)
     return _pool
 
+
 @contextmanager
 def get_db_connection():
+    if USE_SQLITE:
+        conn = SQLiteConnectionAdapter(sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sahayak.db")))
+        try:
+            yield conn
+        finally:
+            conn.close()
+        return
+
     pool = get_pool()
     conn = pool.getconn()
     try:
@@ -32,8 +142,11 @@ def get_db_connection():
     finally:
         pool.putconn(conn)
 
+
 def get_connection():
     """Legacy helper returning a direct connection for standalone scripts."""
+    if USE_SQLITE:
+        return SQLiteConnectionAdapter(sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sahayak.db")))
     conn = psycopg2.connect(DATABASE_URL)
     conn.autocommit = False
     return conn
@@ -61,8 +174,106 @@ def mask_doc_number(doc_num_str):
         return s.replace(val, f"XXXX XXXX {val[-4:]}")
     return s
 
+def _sqlite_ensure_columns(conn, table_name, columns):
+    cur = conn.cursor()
+    cur.execute(f"PRAGMA table_info({table_name})")
+    existing = {row[1] for row in cur.fetchall()}
+    for column_name, column_def in columns.items():
+        if column_name not in existing:
+            cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")
+    conn.commit()
+
+
 def init_db():
     with get_db_connection() as conn:
+        cur = conn.cursor()
+        if USE_SQLITE:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    full_name TEXT NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    mobile_number TEXT NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    preferred_language TEXT DEFAULT 'en',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS checklist_progress (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    service TEXT NOT NULL,
+                    variant TEXT NOT NULL,
+                    requirement TEXT NOT NULL,
+                    chosen_option TEXT,
+                    uploaded INTEGER NOT NULL DEFAULT 0,
+                    file_path TEXT,
+                    uploaded_at TEXT,
+                    doc_name TEXT,
+                    doc_dob TEXT,
+                    doc_address TEXT,
+                    doc_number TEXT,
+                    raw_text TEXT,
+                    user_id INTEGER,
+                    manually_edited BOOLEAN DEFAULT FALSE,
+                    doc_meta TEXT,
+                    doc_number_hash TEXT,
+                    UNIQUE(session_id, service, variant, requirement)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS mismatch_decisions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    service TEXT NOT NULL,
+                    variant TEXT NOT NULL,
+                    issue_key TEXT NOT NULL,
+                    decision TEXT NOT NULL,
+                    decided_at TEXT NOT NULL,
+                    user_id INTEGER,
+                    UNIQUE(session_id, service, variant, issue_key)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS correction_steps (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    service TEXT NOT NULL,
+                    variant TEXT NOT NULL,
+                    issue_key TEXT NOT NULL,
+                    step_index INTEGER NOT NULL,
+                    completed BOOLEAN DEFAULT FALSE,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, service, variant, issue_key, step_index)
+                )
+                """
+            )
+            _sqlite_ensure_columns(conn, 'checklist_progress', {
+                'doc_number': 'TEXT',
+                'raw_text': 'TEXT',
+                'user_id': 'INTEGER',
+                'manually_edited': 'BOOLEAN DEFAULT FALSE',
+                'doc_meta': 'TEXT',
+                'doc_number_hash': 'TEXT',
+                'id': 'INTEGER'
+            })
+            _sqlite_ensure_columns(conn, 'mismatch_decisions', {
+                'user_id': 'INTEGER'
+            })
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_checklist_progress_user_id ON checklist_progress(user_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_checklist_progress_session_id ON checklist_progress(session_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_mismatch_decisions_session_id ON mismatch_decisions(session_id)")
+            conn.commit()
+            return
+
         conn.autocommit = True
         with conn.cursor() as cur:
             cur.execute(
@@ -490,7 +701,7 @@ def create_user(full_name, email, mobile_number, password_hash, preferred_langua
                 "mobile_number": row[3],
                 "preferred_language": row[4],
             }
-    except psycopg2.IntegrityError:
+    except (psycopg2.IntegrityError, sqlite3.IntegrityError):
         return None
 
 def get_user_by_email(email):

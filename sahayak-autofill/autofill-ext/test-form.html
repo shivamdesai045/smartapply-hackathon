@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Simple test form (Sahayak)</title>
+<style>body{font:15px system-ui;max-width:520px;margin:30px auto;padding:0 16px}label{display:block;margin:12px 0 4px;font-weight:600}input,select,textarea{width:100%;padding:8px;box-sizing:border-box}</style></head>
+<body><h1>Simple test form</h1><p>Sends nothing anywhere.</p>
+<form onsubmit="event.preventDefault();alert('Demo form: nothing was sent.')">
+ <label for="a">Applicant Name</label><input id="a" name="applicant_name">
+ <label for="b">Father's Name</label><input id="b" name="father_name">
+ <label for="m">Mother's Name</label><input id="m" name="mother_name">
+ <label for="c">Date of Birth</label><input id="c" name="dob" type="date">
+ <label for="g">Gender</label><select id="g"><option value="">--Select--</option><option>Male</option><option>Female</option><option>Other</option></select>
+ <label for="mo">Mobile Number</label><input id="mo" name="mobile">
+ <label for="em">Email ID</label><input id="em" name="email" type="email">
+ <label for="d">Aadhaar Number</label><input id="d" name="aadhaar_no" maxlength="12">
+ <label for="e">PAN</label><input id="e" name="pan">
+ <label for="ad">Address</label><textarea id="ad" name="address"></textarea>
+ <label for="s">State</label><select id="s"><option value="">--Select--</option><option>Gujarat</option><option>Maharashtra</option><option>Karnataka</option></select>
+ <label for="di">District</label><input id="di" name="district">
+ <label for="h">PIN Code</label><input id="h" name="pincode" maxlength="6">
+ <label for="j">User Name</label><input id="j" name="username">
+ <p><button>Submit</button></p>
+</form></body></html>

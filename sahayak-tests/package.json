@@ -1,0 +1,12 @@
+{
+  "name": "sahayak-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node run_all_tests.js"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3"
+  }
+}

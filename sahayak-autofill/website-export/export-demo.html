@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sahayak: export corrected details</title>
+<style>
+:root{--ink:#1b1f3b;--muted:#5b607e;--paper:#f7f7fb;--line:#d9dbe8;--indigo:#4f46e5;--bad:#a3261d;--ok:#1b6b43;--warn:#7a4a00}
+@media (prefers-color-scheme:dark){:root{--ink:#e8e9f5;--muted:#a3a8c8;--paper:#14162b;--line:#34385c;--indigo:#8b84ff;--bad:#ff8a80;--ok:#7bd8a3;--warn:#f2c26b}}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:24px 18px 40px}h1{font-size:22px;margin:0 0 4px}p.note{color:var(--muted);margin:0 0 16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.wide{grid-column:1/-1}
+label{display:grid;gap:3px;font-weight:600;font-size:13px}
+input,select,textarea{width:100%;font:inherit;font-weight:400;color:var(--ink);background:transparent;padding:8px 10px;border:1px solid var(--line);border-radius:6px}
+button{font:inherit;font-weight:600;padding:10px 16px;border-radius:6px;border:1px solid var(--indigo);background:var(--indigo);color:#fff;cursor:pointer}
+:focus-visible{outline:3px solid #f28c28;outline-offset:2px}
+#msg p{margin:6px 0}.ok{color:var(--ok)}.err{color:var(--bad)}.warn{color:var(--warn)}
+@media (max-width:520px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Export your corrected details</h1>
+  <p class="note">This creates a file you import into the Sahayak AutoFill extension. Aadhaar and PAN numbers are never put in the file: you type them in the extension. Sample values are filled in for testing.</p>
+  <div class="grid" id="f">
+    <label>Full name <input data-k="fullName" value="Rahul Sharma"></label>
+    <label>Father's name <input data-k="fatherName" value="Suresh Sharma"></label>
+    <label>Mother's name <input data-k="motherName" value="Sunita Sharma"></label>
+    <label>Date of birth <input data-k="dob" type="date" value="2003-07-15"></label>
+    <label>Gender <select data-k="gender"><option>Male</option><option>Female</option><option>Other</option></select></label>
+    <label>Mobile number <input data-k="mobile" inputmode="numeric" value="9876543210"></label>
+    <label>Email <input data-k="email" type="email" value="rahul@example.com"></label>
+    <label>PIN code <input data-k="pin" inputmode="numeric" value="411001"></label>
+    <label class="wide">Address <textarea data-k="address" rows="2">12 MG Road</textarea></label>
+    <label>City / village <input data-k="city" value="Pune"></label>
+    <label>District <input data-k="district" value="Pune"></label>
+    <label>State <input data-k="state" value="Maharashtra"></label>
+    <label>File passphrase (optional) <input id="pw" type="password" autocomplete="new-password"></label>
+  </div>
+  <p class="note" style="margin-top:14px">With a file passphrase, the file is encrypted and the extension asks for the same passphrase when you import it.</p>
+  <button id="go" type="button">Export file</button>
+  <div id="msg" role="status" aria-live="polite"></div>
+</main>
+<script src="lib/crypto.js"></script>
+<script src="lib/profile-io.js"></script>
+<script src="export-demo.js"></script>
+</body>
+</html>

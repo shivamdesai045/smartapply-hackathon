@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sahayak AutoFill</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="" width="34" height="34">
+    <div><h1>Sahayak AutoFill</h1><p>Save details once. Fill any form page.</p></div>
+    <button id="lockBtn" type="button" hidden>Lock</button>
+  </header>
+  <main>
+    <section id="syncNotice" class="sync-banner" hidden>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:22px;">⚡</span>
+        <div>
+          <h2 id="syncTitle" style="font-size:14px;margin:0;">Incoming details received from website</h2>
+          <p id="syncDesc" class="note">Enter your passphrase to encrypt and save to your vault.</p>
+        </div>
+      </div>
+      <div id="syncActions" class="actions" hidden style="margin-top:8px;">
+        <button id="acceptSyncBtn" class="primary" type="button">Save to Encrypted Vault</button>
+        <button id="discardSyncBtn" type="button">Dismiss</button>
+      </div>
+    </section>
+
+    <section id="lock" aria-labelledby="lockTitle" hidden>
+      <h2 id="lockTitle">Unlock</h2>
+      <p class="note" id="lockNote"></p>
+      <label class="stack">Passphrase <input id="pass" type="password" autocomplete="off"></label>
+      <label class="stack" id="confirmRow" hidden>Confirm passphrase <input id="pass2" type="password" autocomplete="off"></label>
+      <div class="actions"><button id="unlockBtn" class="primary" type="button">Unlock</button></div>
+      <p id="lockMsg" role="alert" class="err"></p>
+      <button id="wipeLock" type="button" class="danger" hidden>Forgot passphrase? Delete saved details</button>
+    </section>
+
+    <div id="appMain" hidden>
+      <section aria-labelledby="h-import">
+        <h2 id="h-import">Import from the Sahayak website</h2>
+        <p class="note">On the website press Export, then choose that file here. It is added as a new saved person. Aadhaar and PAN are never in the file: type them below yourself.</p>
+        <input id="importFile" type="file" accept=".json,application/json" aria-label="Details file">
+        <label class="stack" id="filePassRow" hidden>File passphrase (this file is protected) <input id="filePass" type="password" autocomplete="off"></label>
+        <div class="actions"><button id="importBtn" type="button">Import file</button></div>
+        <div id="importOut" role="status" aria-live="polite"></div>
+      </section>
+
+      <section aria-labelledby="h-profile">
+        <h2 id="h-profile">Saved details</h2>
+        <div class="bar">
+          <select id="profile" aria-label="Saved person"></select>
+          <button id="newProfile" type="button">New</button>
+          <button id="delProfile" type="button">Delete</button>
+        </div>
+        <p class="note">Encrypted with your passphrase and stored only in this browser. Use sample data while testing.</p>
+
+        <div class="grid">
+          <label>Full name <input id="fullName" autocomplete="off"></label>
+          <label>Father's name <input id="fatherName" autocomplete="off"></label>
+          <label>Mother's name <input id="motherName" autocomplete="off"></label>
+          <label>Date of birth <input id="dob" type="date"></label>
+          <label>Gender
+            <select id="gender"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+          </label>
+          <label>Mobile number <input id="mobile" inputmode="numeric" maxlength="10" autocomplete="off"><span class="hint" id="h-mobile"></span></label>
+          <label>Email <input id="email" type="email" autocomplete="off"></label>
+          <label>Aadhaar number <input id="aadhaar" inputmode="numeric" maxlength="14" autocomplete="off"><span class="hint" id="h-aadhaar"></span></label>
+          <label>PAN <input id="pan" maxlength="10" autocomplete="off"><span class="hint" id="h-pan"></span></label>
+          <label class="wide">Address <textarea id="address" rows="2"></textarea></label>
+          <label>City / village <input id="city" autocomplete="off"></label>
+          <label>District <input id="district" autocomplete="off"></label>
+          <label>State <input id="state" autocomplete="off"></label>
+          <label>PIN code <input id="pin" inputmode="numeric" maxlength="6" autocomplete="off"><span class="hint" id="h-pin"></span></label>
+        </div>
+      </section>
+
+      <section aria-labelledby="h-fill">
+        <h2 id="h-fill">Fill the form page</h2>
+        <p class="note">Open the form page, click the Sahayak icon on it, then use these buttons. Steps and pages change? Press Fill again. The extension locks itself after 5 minutes without use.</p>
+        <label class="check"><input type="checkbox" id="overwrite"> Replace values already in the form</label>
+        <div class="actions">
+          <button id="fill" class="primary" type="button">Fill this page</button>
+          <button id="scan" type="button">Check this page (fills nothing)</button>
+        </div>
+        <div id="out" role="status" aria-live="polite"></div>
+        <p class="note">It never clicks Submit. Check every field yourself, and do captcha and OTP yourself.</p>
+      </section>
+
+      <section>
+        <button id="wipe" type="button" class="danger">Delete all saved details</button>
+      </section>
+    </div>
+  </main>
+  <footer>
+    <p class="disclaimer">Sahayak is an independent tool and is not affiliated with or endorsed by the Government of India.</p>
+  </footer>
+  <script src="lib/crypto.js"></script>
+  <script src="lib/profile-io.js"></script>
+  <script src="lib/autofill.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Gov-style test form (Sahayak)</title>
+<style>body{font:14px Arial;max-width:720px;margin:24px auto;padding:0 12px}td{padding:6px;vertical-align:top}input,select,textarea{padding:6px}</style></head>
+<body><h2>Gov-style test form (table layout, no label tags)</h2><p>Dropdowns, radio buttons, split Aadhaar, read-only date picker, captcha, OTP. Sends nothing.</p>
+<form onsubmit="event.preventDefault();alert('Demo form: nothing was sent.')"><table>
+ <tr><td>Name of Applicant *</td><td><input name="txtApp" size="40"></td></tr>
+ <tr><td>Name as per Aadhaar</td><td><input name="txtAadhaarName" size="40"></td></tr>
+ <tr><td>Father / Husband Name *</td><td><input name="txtFH" size="40"></td></tr>
+ <tr><td>Mother's Name</td><td><input name="txtMo" size="40"></td></tr>
+ <tr><td>Gender *</td><td><input type="radio" name="rdoG" id="r1" value="1"><label for="r1">Male</label> <input type="radio" name="rdoG" id="r2" value="2"><label for="r2">Female</label> <input type="radio" name="rdoG" id="r3" value="3"><label for="r3">Transgender</label></td></tr>
+ <tr><td>Date of Birth *</td><td><input name="txtDob" id="dobPicker" readonly placeholder="dd/mm/yyyy"></td></tr>
+ <tr><td>DOB (alternate style)</td><td><select name="dd"><option value="">Day</option></select> <select name="mm"><option value="">Month</option></select> <select name="yy"><option value="">Year</option></select></td></tr>
+ <tr><td>Aadhaar Number</td><td><input name="a1" maxlength="4" size="4" aria-label="Aadhaar part 1"> <input name="a2" maxlength="4" size="4" aria-label="Aadhaar part 2"> <input name="a3" maxlength="4" size="4" aria-label="Aadhaar part 3"></td></tr>
+ <tr><td>PAN Number</td><td><input name="txtPan" maxlength="10"></td></tr>
+ <tr><td>Mobile No.</td><td><input name="txtMobile" maxlength="10"></td></tr>
+ <tr><td>Alternate Mobile No.</td><td><input name="txtAlt" maxlength="10"></td></tr>
+ <tr><td>E-mail</td><td><input name="txtMail"></td></tr>
+ <tr><td>Permanent Address</td><td><textarea name="txtAddr" rows="2"></textarea></td></tr>
+ <tr><td>Address Line 2</td><td><input name="txtAddr2"></td></tr>
+ <tr><td>State *</td><td><select name="ddlState" id="ddlState"><option value="0">-- Select State --</option><option value="27">MAHARASHTRA</option><option value="24">GUJARAT</option></select></td></tr>
+ <tr><td>District *</td><td><select name="ddlDist" id="ddlDist"><option value="0">-- Select District --</option></select></td></tr>
+ <tr><td>Village / Town</td><td><input name="txtCity"></td></tr>
+ <tr><td>Pincode *</td><td><input name="txtPin" maxlength="6"></td></tr>
+ <tr><td>Upload Photo</td><td><input type="file" name="photo"></td></tr>
+ <tr><td>Enter Captcha</td><td><input name="captchaText"></td></tr>
+ <tr><td>Enter OTP</td><td><input name="otpBox"></td></tr>
+ <tr><td colspan="2"><button>Submit</button></td></tr>
+</table></form>
+<script>
+ var d=document.querySelector('[name=dd]'),m=document.querySelector('[name=mm]'),y=document.querySelector('[name=yy]');
+ for(var i=1;i<=31;i++)d.add(new Option(i<10?'0'+i:i,i));
+ ['January','February','March','April','May','June','July','August','September','October','November','December'].forEach(function(n,i){m.add(new Option(n,i+1))});
+ for(var i=2010;i>=1980;i--)y.add(new Option(i,i));
+ document.getElementById('ddlState').addEventListener('change',function(){var s=document.getElementById('ddlDist');while(s.options.length>1)s.remove(1);
+   if(this.value==='27'){['Nashik','Pune','Nagpur'].forEach(function(n){s.add(new Option(n,n))});}});
+</script></body></html>
