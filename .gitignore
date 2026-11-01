@@ -12,3 +12,5 @@ backend/uploads/
 backend/ml/data/gold/
 backend/ml/data/real/
 backend/ml/data/feedback_raw/
+
+*.zip
