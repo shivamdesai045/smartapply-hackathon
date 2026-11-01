@@ -724,7 +724,7 @@ def check_mismatches_route():
 
 @app.route("/api/translate", methods=["POST"])
 @limiter.limit("30 per minute")
-@session_or_login_required
+@login_required
 def translate_text():
     data = request.get_json(silent=True)
     if not data or "text" not in data or "target_language" not in data:

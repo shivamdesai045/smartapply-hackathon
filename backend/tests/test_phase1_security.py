@@ -63,6 +63,7 @@ class TestPhase1Security(unittest.TestCase):
         sid = str(uuid.uuid4())
         with self.client.session_transaction() as sess:
             sess["session_id"] = sid
+            sess["user_id"] = 1
 
         old_val = os.environ.pop("DIAGNOSTICS_ENABLED", None)
         try:
@@ -85,9 +86,14 @@ class TestPhase1Security(unittest.TestCase):
                 os.environ["DIAGNOSTICS_ENABLED"] = old_val
 
     def test_05_translation_validation_language_and_length(self):
+        # Unauthenticated request rejected
+        res_unauth = self.client.post("/api/translate", json={"text": "Hello", "target_language": "hi"})
+        self.assertEqual(res_unauth.status_code, 401)
+
         sid = str(uuid.uuid4())
         with self.client.session_transaction() as sess:
             sess["session_id"] = sid
+            sess["user_id"] = 1
 
         # Unsupported language
         res_lang = self.client.post("/api/translate", json={"text": "Hello", "target_language": "fr", "session_id": sid})
