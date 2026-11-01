@@ -38,3 +38,4 @@ Place your annotations in `backend/ml/data/gold/labels.csv` with the following c
 - `mother_name`: Mother's name if printed, empty otherwise.
 
 Reference example provided at `backend/ml/data/labels.csv.example`.
+

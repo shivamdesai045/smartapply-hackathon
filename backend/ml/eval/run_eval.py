@@ -476,3 +476,4 @@ if __name__ == "__main__":
         labels_file=args.labels_file,
         report_path=args.report_path
     )
+

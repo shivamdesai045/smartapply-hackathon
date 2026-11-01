@@ -5,6 +5,7 @@ import hashlib
 from datetime import datetime
 import pytesseract
 from PIL import Image, ImageFilter, ImageOps, ImageEnhance
+import ocr_boxes
 
 # Ensure Tesseract executable path on Windows
 if shutil.which("tesseract") is None:
@@ -397,6 +398,14 @@ def extract_text_from_pdf(file_path):
 
 
 def extract_text(file_path, original_filename=None):
+    try:
+        ocr_res = ocr_boxes.extract_ocr_with_boxes(file_path, original_filename)
+        txt = ocr_res.get("text", "")
+        if txt and txt.strip():
+            return txt
+    except Exception:
+        pass
+
     if original_filename:
         ext = get_file_extension(original_filename)
     else:
@@ -983,7 +992,7 @@ def detect_document_type(text):
 def extract_fields(file_path, original_filename, chosen_option=None):
     """
     Extracts name, dob, address, doc_number, father_name, mother_name, doc_meta, and raw_text from file.
-    Always returns a safe dict with ocrAttempted: bool.
+    Always returns a safe dict with ocrAttempted: bool, boxes, lines, and ocrConfidence.
     """
     ext = get_file_extension(original_filename)
     if ext not in SUPPORTED_EXTENSIONS:
@@ -993,7 +1002,16 @@ def extract_fields(file_path, original_filename, chosen_option=None):
             "raw_text": "", "ocrAttempted": False
         }
 
-    text = extract_text(file_path, original_filename)
+    ocr_data = None
+    try:
+        ocr_data = ocr_boxes.extract_ocr_with_boxes(file_path, original_filename)
+        text = ocr_data.get("text", "")
+    except Exception:
+        text = ""
+
+    if not text.strip():
+        text = extract_text(file_path, original_filename)
+
     if not text.strip():
         return {
             "name": None, "dob": None, "address": None, "doc_number": None,
@@ -1026,7 +1044,7 @@ def extract_fields(file_path, original_filename, chosen_option=None):
     if doc_warning:
         doc_meta["documentTypeWarning"] = doc_warning
 
-    return {
+    res = {
         "name": guess_name(text, chosen_option=chosen_option),
         "dob": guess_dob(text),
         "address": guess_address(text),
@@ -1040,3 +1058,9 @@ def extract_fields(file_path, original_filename, chosen_option=None):
         "documentTypeWarning": doc_warning,
         "detectedType": detected_type,
     }
+    if ocr_data:
+        res["boxes"] = ocr_data.get("words", [])
+        res["lines"] = ocr_data.get("lines", [])
+        res["ocrConfidence"] = ocr_data.get("mean_confidence", 0.0)
+        res["ocrEngine"] = ocr_data.get("engine", "tesseract")
+    return res
