@@ -5,5 +5,9 @@ node_modules/
 dist/
 __pycache__/
 uploads/
+*.db
 sahayak.db
 .pytest_cache/
+ml/data/gold/
+ml/data/real/
+ml/data/feedback_raw/
