@@ -1,0 +1,320 @@
+{
+  "file": "pan_card_08.pdf",
+  "doc_type": "PAN Card",
+  "page_width": 595.0,
+  "page_height": 842.0,
+  "words": [
+    {
+      "text": "INCOME",
+      "bbox": [
+        50.0,
+        46.03,
+        102.0,
+        63.89
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "TAX",
+      "bbox": [
+        105.61,
+        46.03,
+        130.9,
+        63.89
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "DEPARTMENT",
+      "bbox": [
+        134.51,
+        46.03,
+        224.07,
+        63.89
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "GOVT.",
+      "bbox": [
+        50.0,
+        68.18,
+        84.23,
+        83.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "OF",
+      "bbox": [
+        87.29,
+        68.18,
+        102.57,
+        83.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "INDIA",
+      "bbox": [
+        105.63,
+        68.18,
+        134.96,
+        83.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Permanent",
+      "bbox": [
+        50.0,
+        93.18,
+        103.8,
+        108.29
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Account",
+      "bbox": [
+        106.86,
+        93.18,
+        146.6,
+        108.29
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Number",
+      "bbox": [
+        149.66,
+        93.18,
+        188.78,
+        108.29
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Card",
+      "bbox": [
+        191.83,
+        93.18,
+        215.67,
+        108.29
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Name:",
+      "bbox": [
+        50.0,
+        127.1,
+        85.34,
+        143.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Sneha",
+      "bbox": [
+        88.68,
+        127.1,
+        123.37,
+        143.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Prakash",
+      "bbox": [
+        126.7,
+        127.1,
+        170.72,
+        143.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Iyer",
+      "bbox": [
+        174.06,
+        127.1,
+        194.06,
+        143.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Father's",
+      "bbox": [
+        50.0,
+        153.18,
+        89.39,
+        168.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Name:",
+      "bbox": [
+        92.45,
+        153.18,
+        124.84,
+        168.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Prakash",
+      "bbox": [
+        127.9,
+        153.18,
+        168.25,
+        168.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Iyer",
+      "bbox": [
+        171.31,
+        153.18,
+        189.64,
+        168.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Date",
+      "bbox": [
+        50.0,
+        178.18,
+        73.23,
+        193.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "of",
+      "bbox": [
+        76.29,
+        178.18,
+        85.46,
+        193.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Birth:",
+      "bbox": [
+        88.52,
+        178.18,
+        114.2,
+        193.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "18/09/1990",
+      "bbox": [
+        117.25,
+        178.18,
+        172.3,
+        193.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Permanent",
+      "bbox": [
+        50.0,
+        211.02,
+        113.58,
+        228.89
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Account",
+      "bbox": [
+        117.2,
+        211.02,
+        164.17,
+        228.89
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Number:",
+      "bbox": [
+        167.78,
+        211.02,
+        217.62,
+        228.89
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "RYEZI9645T",
+      "bbox": [
+        221.24,
+        211.02,
+        296.38,
+        228.89
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 3
+    }
+  ]
+}

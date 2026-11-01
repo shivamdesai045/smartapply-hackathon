@@ -1,0 +1,716 @@
+{
+  "file": "marksheet_06.pdf",
+  "doc_type": "10th Marksheet",
+  "page_width": 595.0,
+  "page_height": 842.0,
+  "words": [
+    {
+      "text": "CENTRAL",
+      "bbox": [
+        50.0,
+        44.95,
+        115.34,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "BOARD",
+      "bbox": [
+        119.23,
+        44.95,
+        169.01,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "OF",
+      "bbox": [
+        172.91,
+        44.95,
+        192.35,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "SECONDARY",
+      "bbox": [
+        196.24,
+        44.95,
+        284.92,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "EDUCATION",
+      "bbox": [
+        288.81,
+        44.95,
+        371.26,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "SECONDARY",
+      "bbox": [
+        50.0,
+        73.18,
+        119.67,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "SCHOOL",
+      "bbox": [
+        122.73,
+        73.18,
+        169.18,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "EXAMINATION",
+      "bbox": [
+        172.24,
+        73.18,
+        248.03,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "(CLASS",
+      "bbox": [
+        251.09,
+        73.18,
+        290.82,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "X)",
+      "bbox": [
+        293.88,
+        73.18,
+        304.88,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Candidate",
+      "bbox": [
+        50.0,
+        107.1,
+        104.7,
+        123.59
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Name:",
+      "bbox": [
+        108.03,
+        107.1,
+        143.37,
+        123.59
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Ananya",
+      "bbox": [
+        146.71,
+        107.1,
+        187.4,
+        123.59
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Mohan",
+      "bbox": [
+        190.74,
+        107.1,
+        227.42,
+        123.59
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Mehta",
+      "bbox": [
+        230.76,
+        107.1,
+        264.1,
+        123.59
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Roll",
+      "bbox": [
+        50.0,
+        128.18,
+        68.94,
+        143.29
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "No:",
+      "bbox": [
+        72.0,
+        128.18,
+        89.12,
+        143.29
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "2191066",
+      "bbox": [
+        92.17,
+        128.18,
+        134.99,
+        143.29
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Date",
+      "bbox": [
+        50.0,
+        148.18,
+        73.23,
+        163.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "of",
+      "bbox": [
+        76.29,
+        148.18,
+        85.46,
+        163.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Birth:",
+      "bbox": [
+        88.52,
+        148.18,
+        114.2,
+        163.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "10/07/1985",
+      "bbox": [
+        117.25,
+        148.18,
+        172.3,
+        163.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Mother's",
+      "bbox": [
+        50.0,
+        168.18,
+        91.83,
+        183.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Name:",
+      "bbox": [
+        94.89,
+        168.18,
+        127.29,
+        183.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Geeta",
+      "bbox": [
+        130.34,
+        168.18,
+        160.31,
+        183.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Mehta",
+      "bbox": [
+        163.37,
+        168.18,
+        193.93,
+        183.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Father's",
+      "bbox": [
+        50.0,
+        188.18,
+        89.39,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Name:",
+      "bbox": [
+        92.45,
+        188.18,
+        124.84,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Mohan",
+      "bbox": [
+        127.9,
+        188.18,
+        161.53,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Mehta",
+      "bbox": [
+        164.59,
+        188.18,
+        195.16,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Subject",
+      "bbox": [
+        50.0,
+        219.25,
+        83.35,
+        232.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Codes",
+      "bbox": [
+        86.13,
+        219.25,
+        115.03,
+        232.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "and",
+      "bbox": [
+        117.81,
+        219.25,
+        134.49,
+        232.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Marks",
+      "bbox": [
+        137.27,
+        219.25,
+        164.49,
+        232.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Obtained:",
+      "bbox": [
+        167.27,
+        219.25,
+        210.63,
+        232.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "101",
+      "bbox": [
+        50.0,
+        239.25,
+        66.68,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "English:",
+      "bbox": [
+        69.46,
+        239.25,
+        105.03,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "085",
+      "bbox": [
+        107.81,
+        239.25,
+        124.49,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "|",
+      "bbox": [
+        127.27,
+        239.25,
+        129.87,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "002",
+      "bbox": [
+        132.65,
+        239.25,
+        149.33,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Hindi:",
+      "bbox": [
+        152.11,
+        239.25,
+        177.67,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 5
+    },
+    {
+      "text": "088",
+      "bbox": [
+        180.45,
+        239.25,
+        197.13,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 6
+    },
+    {
+      "text": "|",
+      "bbox": [
+        199.91,
+        239.25,
+        202.51,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 7
+    },
+    {
+      "text": "041",
+      "bbox": [
+        205.29,
+        239.25,
+        221.97,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 8
+    },
+    {
+      "text": "Mathematics:",
+      "bbox": [
+        224.75,
+        239.25,
+        284.21,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 9
+    },
+    {
+      "text": "092",
+      "bbox": [
+        286.99,
+        239.25,
+        303.67,
+        252.99
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 10
+    },
+    {
+      "text": "086",
+      "bbox": [
+        50.0,
+        259.25,
+        66.68,
+        272.99
+      ],
+      "block_no": 9,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Science:",
+      "bbox": [
+        69.46,
+        259.25,
+        107.81,
+        272.99
+      ],
+      "block_no": 9,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "089",
+      "bbox": [
+        110.59,
+        259.25,
+        127.27,
+        272.99
+      ],
+      "block_no": 9,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "|",
+      "bbox": [
+        130.05,
+        259.25,
+        132.65,
+        272.99
+      ],
+      "block_no": 9,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "087",
+      "bbox": [
+        135.43,
+        259.25,
+        152.11,
+        272.99
+      ],
+      "block_no": 9,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Social",
+      "bbox": [
+        154.89,
+        259.25,
+        182.12,
+        272.99
+      ],
+      "block_no": 9,
+      "line_no": 0,
+      "word_no": 5
+    },
+    {
+      "text": "Science:",
+      "bbox": [
+        184.9,
+        259.25,
+        223.25,
+        272.99
+      ],
+      "block_no": 9,
+      "line_no": 0,
+      "word_no": 6
+    },
+    {
+      "text": "091",
+      "bbox": [
+        226.03,
+        259.25,
+        242.71,
+        272.99
+      ],
+      "block_no": 9,
+      "line_no": 0,
+      "word_no": 7
+    },
+    {
+      "text": "Result:",
+      "bbox": [
+        50.0,
+        283.17,
+        84.23,
+        298.29
+      ],
+      "block_no": 10,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "PASSED",
+      "bbox": [
+        87.29,
+        283.17,
+        131.92,
+        298.29
+      ],
+      "block_no": 10,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Certificate",
+      "bbox": [
+        50.0,
+        309.25,
+        95.01,
+        322.99
+      ],
+      "block_no": 11,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "No:",
+      "bbox": [
+        97.79,
+        309.25,
+        113.35,
+        322.99
+      ],
+      "block_no": 11,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "SYN10965138",
+      "bbox": [
+        116.13,
+        309.25,
+        181.17,
+        322.99
+      ],
+      "block_no": 11,
+      "line_no": 0,
+      "word_no": 2
+    }
+  ]
+}

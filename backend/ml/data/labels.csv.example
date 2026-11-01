@@ -1,0 +1,7 @@
+file,doc_type,name,dob,address,doc_number,father_name,mother_name
+aadhaar_sample_01.pdf,Aadhaar Card,Aarav Sharma,1992-05-14,"House No 42, Sector 15, Gandhinagar, Gujarat 382016",XXXX XXXX 1234,,
+pan_sample_01.pdf,PAN Card,Aarav Sharma,1992-05-14,,ABCZE1405A,Suresh Sharma,
+marksheet_sample_01.pdf,10th Marksheet,Aarav Sharma,1992-05-14,,98765432,Suresh Sharma,Sunita Sharma
+passport_sample_01.pdf,Passport,Aarav Sharma,1992-05-14,"House No 42, Sector 15, Gandhinagar, Gujarat 382016",Z1234567,Suresh Sharma,Sunita Sharma
+voter_sample_01.pdf,Voter ID,Aarav Sharma,1992-05-14,"House No 42, Sector 15, Gandhinagar, Gujarat 382016",ZZZ1234567,Suresh Sharma,
+dl_sample_01.pdf,Driving Licence,Aarav Sharma,1992-05-14,"House No 42, Sector 15, Gandhinagar, Gujarat 382016",MH1220150001234,Suresh Sharma,

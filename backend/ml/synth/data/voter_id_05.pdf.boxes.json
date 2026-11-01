@@ -1,0 +1,440 @@
+{
+  "file": "voter_id_05.pdf",
+  "doc_type": "Voter ID",
+  "page_width": 595.0,
+  "page_height": 842.0,
+  "words": [
+    {
+      "text": "ELECTION",
+      "bbox": [
+        50.0,
+        44.95,
+        120.01,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "COMMISSION",
+      "bbox": [
+        123.91,
+        44.95,
+        215.69,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "OF",
+      "bbox": [
+        219.58,
+        44.95,
+        239.03,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "INDIA",
+      "bbox": [
+        242.92,
+        44.95,
+        280.26,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "ELECTOR",
+      "bbox": [
+        50.0,
+        73.18,
+        101.95,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "PHOTO",
+      "bbox": [
+        105.01,
+        73.18,
+        144.13,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "IDENTITY",
+      "bbox": [
+        147.18,
+        73.18,
+        197.3,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "CARD",
+      "bbox": [
+        200.36,
+        73.18,
+        231.52,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "EPIC",
+      "bbox": [
+        50.0,
+        101.03,
+        80.34,
+        118.89
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "No:",
+      "bbox": [
+        83.96,
+        101.03,
+        104.18,
+        118.89
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "ZZZ8106470",
+      "bbox": [
+        107.8,
+        101.03,
+        182.22,
+        118.89
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Elector",
+      "bbox": [
+        50.0,
+        132.1,
+        87.34,
+        148.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Name:",
+      "bbox": [
+        90.68,
+        132.1,
+        126.02,
+        148.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Vikram",
+      "bbox": [
+        129.36,
+        132.1,
+        166.69,
+        148.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Shashikant",
+      "bbox": [
+        170.02,
+        132.1,
+        229.39,
+        148.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Desai",
+      "bbox": [
+        232.72,
+        132.1,
+        263.4,
+        148.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Father's",
+      "bbox": [
+        50.0,
+        158.18,
+        89.39,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Name:",
+      "bbox": [
+        92.45,
+        158.18,
+        124.84,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Shashikant",
+      "bbox": [
+        127.9,
+        158.18,
+        182.32,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Desai",
+      "bbox": [
+        185.38,
+        158.18,
+        213.49,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Gender:",
+      "bbox": [
+        50.0,
+        183.18,
+        89.74,
+        198.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Male",
+      "bbox": [
+        92.8,
+        183.18,
+        116.64,
+        198.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Date",
+      "bbox": [
+        50.0,
+        208.18,
+        73.23,
+        223.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "of",
+      "bbox": [
+        76.29,
+        208.18,
+        85.46,
+        223.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Birth:",
+      "bbox": [
+        88.52,
+        208.18,
+        114.2,
+        223.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "05/12/1997",
+      "bbox": [
+        117.25,
+        208.18,
+        172.3,
+        223.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Address:",
+      "bbox": [
+        50.0,
+        238.18,
+        93.41,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Flat",
+      "bbox": [
+        96.46,
+        238.18,
+        114.8,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "104,",
+      "bbox": [
+        117.86,
+        238.18,
+        139.26,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Green",
+      "bbox": [
+        142.32,
+        238.18,
+        172.89,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Glen",
+      "bbox": [
+        175.95,
+        238.18,
+        199.18,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Layout,",
+      "bbox": [
+        202.24,
+        238.18,
+        238.32,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 5
+    },
+    {
+      "text": "Bellandur,",
+      "bbox": [
+        241.38,
+        238.18,
+        290.9,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 6
+    },
+    {
+      "text": "Bengaluru,",
+      "bbox": [
+        293.96,
+        238.18,
+        347.15,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 7
+    },
+    {
+      "text": "Karnataka",
+      "bbox": [
+        350.21,
+        238.18,
+        400.35,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 8
+    },
+    {
+      "text": "560103",
+      "bbox": [
+        403.41,
+        238.18,
+        440.1,
+        253.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 9
+    }
+  ]
+}

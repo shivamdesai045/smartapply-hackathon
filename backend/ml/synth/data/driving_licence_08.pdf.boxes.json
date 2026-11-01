@@ -1,0 +1,476 @@
+{
+  "file": "driving_licence_08.pdf",
+  "doc_type": "Driving Licence",
+  "page_width": 595.0,
+  "page_height": 842.0,
+  "words": [
+    {
+      "text": "UNION",
+      "bbox": [
+        50.0,
+        44.95,
+        95.11,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "OF",
+      "bbox": [
+        99.0,
+        44.95,
+        118.45,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "INDIA",
+      "bbox": [
+        122.34,
+        44.95,
+        159.68,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "/",
+      "bbox": [
+        163.57,
+        44.95,
+        167.46,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "DRIVING",
+      "bbox": [
+        171.35,
+        44.95,
+        229.69,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "LICENCE",
+      "bbox": [
+        233.58,
+        44.95,
+        294.26,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 5
+    },
+    {
+      "text": "TRANSPORT",
+      "bbox": [
+        50.0,
+        73.18,
+        117.84,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "DEPARTMENT",
+      "bbox": [
+        120.89,
+        73.18,
+        196.67,
+        88.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Licence",
+      "bbox": [
+        50.0,
+        101.03,
+        94.8,
+        118.89
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "No:",
+      "bbox": [
+        98.41,
+        101.03,
+        118.64,
+        118.89
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "DL-9920208526486",
+      "bbox": [
+        122.25,
+        101.03,
+        237.16,
+        118.89
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Name:",
+      "bbox": [
+        50.0,
+        132.1,
+        85.34,
+        148.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Sneha",
+      "bbox": [
+        88.68,
+        132.1,
+        123.37,
+        148.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Prakash",
+      "bbox": [
+        126.7,
+        132.1,
+        170.72,
+        148.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Iyer",
+      "bbox": [
+        174.06,
+        132.1,
+        194.06,
+        148.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Son",
+      "bbox": [
+        50.0,
+        158.18,
+        69.57,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "/",
+      "bbox": [
+        72.63,
+        158.18,
+        75.68,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Daughter",
+      "bbox": [
+        78.74,
+        158.18,
+        123.99,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "/",
+      "bbox": [
+        127.04,
+        158.18,
+        130.1,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Wife",
+      "bbox": [
+        133.16,
+        158.18,
+        155.16,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "of:",
+      "bbox": [
+        158.22,
+        158.18,
+        170.45,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 5
+    },
+    {
+      "text": "Prakash",
+      "bbox": [
+        173.51,
+        158.18,
+        213.86,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 6
+    },
+    {
+      "text": "Iyer",
+      "bbox": [
+        216.91,
+        158.18,
+        235.25,
+        173.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 7
+    },
+    {
+      "text": "DOB:",
+      "bbox": [
+        50.0,
+        183.18,
+        76.89,
+        198.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "18/09/1990",
+      "bbox": [
+        79.95,
+        183.18,
+        135.0,
+        198.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Address:",
+      "bbox": [
+        50.0,
+        213.18,
+        93.41,
+        228.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Row",
+      "bbox": [
+        96.46,
+        213.18,
+        118.46,
+        228.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "House",
+      "bbox": [
+        121.52,
+        213.18,
+        153.31,
+        228.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "7,",
+      "bbox": [
+        156.37,
+        213.18,
+        165.54,
+        228.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "CIDCO",
+      "bbox": [
+        168.6,
+        213.18,
+        204.04,
+        228.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Colony,",
+      "bbox": [
+        207.1,
+        213.18,
+        244.39,
+        228.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 5
+    },
+    {
+      "text": "Nashik,",
+      "bbox": [
+        247.45,
+        213.18,
+        284.12,
+        228.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 6
+    },
+    {
+      "text": "Maharashtra",
+      "bbox": [
+        287.18,
+        213.18,
+        348.92,
+        228.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 7
+    },
+    {
+      "text": "422009",
+      "bbox": [
+        351.98,
+        213.18,
+        388.68,
+        228.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 8
+    },
+    {
+      "text": "Class",
+      "bbox": [
+        50.0,
+        249.25,
+        75.0,
+        262.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "of",
+      "bbox": [
+        77.78,
+        249.25,
+        86.12,
+        262.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Vehicle:",
+      "bbox": [
+        88.9,
+        249.25,
+        124.47,
+        262.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "LMV,",
+      "bbox": [
+        127.25,
+        249.25,
+        150.59,
+        262.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "MCWG",
+      "bbox": [
+        153.37,
+        249.25,
+        186.14,
+        262.99
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 4
+    }
+  ]
+}

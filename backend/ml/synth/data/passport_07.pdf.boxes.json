@@ -1,0 +1,608 @@
+{
+  "file": "passport_07.pdf",
+  "doc_type": "Passport",
+  "page_width": 595.0,
+  "page_height": 842.0,
+  "words": [
+    {
+      "text": "PASSPORT",
+      "bbox": [
+        50.0,
+        44.95,
+        126.24,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "/",
+      "bbox": [
+        130.14,
+        44.95,
+        134.03,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "REPUBLIC",
+      "bbox": [
+        137.92,
+        44.95,
+        207.93,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "OF",
+      "bbox": [
+        211.83,
+        44.95,
+        231.27,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "INDIA",
+      "bbox": [
+        235.16,
+        44.95,
+        272.5,
+        64.19
+      ],
+      "block_no": 0,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Type:",
+      "bbox": [
+        50.0,
+        78.18,
+        77.51,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "P",
+      "bbox": [
+        80.57,
+        78.18,
+        87.91,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "|",
+      "bbox": [
+        90.96,
+        78.18,
+        93.82,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Country",
+      "bbox": [
+        96.88,
+        78.18,
+        135.39,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Code:",
+      "bbox": [
+        138.45,
+        78.18,
+        167.8,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "IND",
+      "bbox": [
+        170.86,
+        78.18,
+        189.8,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 5
+    },
+    {
+      "text": "|",
+      "bbox": [
+        192.86,
+        78.18,
+        195.72,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 6
+    },
+    {
+      "text": "Passport",
+      "bbox": [
+        198.77,
+        78.18,
+        242.18,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 7
+    },
+    {
+      "text": "No:",
+      "bbox": [
+        245.24,
+        78.18,
+        262.35,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 8
+    },
+    {
+      "text": "Z5076817",
+      "bbox": [
+        265.41,
+        78.18,
+        314.95,
+        93.29
+      ],
+      "block_no": 1,
+      "line_no": 0,
+      "word_no": 9
+    },
+    {
+      "text": "Given",
+      "bbox": [
+        50.0,
+        107.1,
+        81.34,
+        123.59
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Name(s):",
+      "bbox": [
+        84.68,
+        107.1,
+        134.01,
+        123.59
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Aditya",
+      "bbox": [
+        137.35,
+        107.1,
+        170.7,
+        123.59
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Gopal",
+      "bbox": [
+        174.03,
+        107.1,
+        206.05,
+        123.59
+      ],
+      "block_no": 2,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Surname:",
+      "bbox": [
+        50.0,
+        127.1,
+        102.02,
+        143.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Joshi",
+      "bbox": [
+        105.36,
+        127.1,
+        133.36,
+        143.59
+      ],
+      "block_no": 3,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Nationality:",
+      "bbox": [
+        50.0,
+        148.18,
+        104.41,
+        163.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "INDIAN",
+      "bbox": [
+        107.46,
+        148.18,
+        144.74,
+        163.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "|",
+      "bbox": [
+        147.8,
+        148.18,
+        150.66,
+        163.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Sex:",
+      "bbox": [
+        153.72,
+        148.18,
+        175.73,
+        163.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "M",
+      "bbox": [
+        178.79,
+        148.18,
+        187.95,
+        163.29
+      ],
+      "block_no": 4,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Date",
+      "bbox": [
+        50.0,
+        168.18,
+        73.23,
+        183.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "of",
+      "bbox": [
+        76.29,
+        168.18,
+        85.46,
+        183.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Birth:",
+      "bbox": [
+        88.52,
+        168.18,
+        114.2,
+        183.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "22/01/2003",
+      "bbox": [
+        117.25,
+        168.18,
+        172.3,
+        183.29
+      ],
+      "block_no": 5,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Father",
+      "bbox": [
+        50.0,
+        188.18,
+        81.79,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "/",
+      "bbox": [
+        84.85,
+        188.18,
+        87.91,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Legal",
+      "bbox": [
+        90.96,
+        188.18,
+        117.87,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Guardian:",
+      "bbox": [
+        120.93,
+        188.18,
+        169.23,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Gopal",
+      "bbox": [
+        172.29,
+        188.18,
+        201.63,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Joshi",
+      "bbox": [
+        204.69,
+        188.18,
+        230.37,
+        203.29
+      ],
+      "block_no": 6,
+      "line_no": 0,
+      "word_no": 5
+    },
+    {
+      "text": "Mother:",
+      "bbox": [
+        50.0,
+        208.18,
+        87.29,
+        223.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "Rekha",
+      "bbox": [
+        90.35,
+        208.18,
+        122.14,
+        223.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "Joshi",
+      "bbox": [
+        125.2,
+        208.18,
+        150.87,
+        223.29
+      ],
+      "block_no": 7,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Address:",
+      "bbox": [
+        50.0,
+        238.18,
+        93.41,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 0
+    },
+    {
+      "text": "House",
+      "bbox": [
+        96.46,
+        238.18,
+        128.25,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 1
+    },
+    {
+      "text": "55,",
+      "bbox": [
+        131.31,
+        238.18,
+        146.6,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 2
+    },
+    {
+      "text": "Banjara",
+      "bbox": [
+        149.66,
+        238.18,
+        187.57,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 3
+    },
+    {
+      "text": "Hills",
+      "bbox": [
+        190.62,
+        238.18,
+        211.39,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 4
+    },
+    {
+      "text": "Road",
+      "bbox": [
+        214.45,
+        238.18,
+        240.74,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 5
+    },
+    {
+      "text": "No",
+      "bbox": [
+        243.8,
+        238.18,
+        257.86,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 6
+    },
+    {
+      "text": "3,",
+      "bbox": [
+        260.91,
+        238.18,
+        270.09,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 7
+    },
+    {
+      "text": "Hyderabad,",
+      "bbox": [
+        273.15,
+        238.18,
+        330.01,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 8
+    },
+    {
+      "text": "Telangana",
+      "bbox": [
+        333.06,
+        238.18,
+        385.04,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 9
+    },
+    {
+      "text": "500034",
+      "bbox": [
+        388.1,
+        238.18,
+        424.79,
+        253.29
+      ],
+      "block_no": 8,
+      "line_no": 0,
+      "word_no": 10
+    }
+  ]
+}
