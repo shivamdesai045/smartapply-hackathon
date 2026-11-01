@@ -45,7 +45,8 @@ app.config["RATELIMIT_ENABLED"] = not app.testing
 
 # CORS setup
 cors_origins_env = os.getenv("CORS_ORIGINS")
-origins = [o.strip() for o in cors_origins_env.split(",")] if cors_origins_env else ["http://localhost:5173", "http://127.0.0.1:5173"]
+default_origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"]
+origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()] if cors_origins_env and cors_origins_env.strip() else default_origins
 CORS(app, supports_credentials=True, origins=origins)
 
 # Rate limiter setup
