@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { fetchVerificationReport } from "../lib/api";
+import { deriveCorrectedProfile } from "../lib/exportProfile";
+import { sendProfileToExtension, pingExtension } from "../lib/extensionBridge";
+import ExportModal from "../components/ExportModal";
 
 function VerificationReport() {
   const { slug } = useParams();
@@ -11,6 +14,35 @@ function VerificationReport() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState(null);
+  const [hasExtension, setHasExtension] = useState(false);
+  const [refinedProfile, setRefinedProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem("sahayak_user_profile");
+      return saved ? JSON.parse(saved) : null;
+    } catch (_) {
+      return null;
+    }
+  });
+
+  const getEffectiveProfile = () => {
+    const derived = deriveCorrectedProfile(report);
+    if (!refinedProfile) return derived;
+    return { ...derived, ...refinedProfile };
+  };
+
+  const handleProfileUpdate = (updated) => {
+    setRefinedProfile(updated);
+    try {
+      localStorage.setItem("sahayak_user_profile", JSON.stringify(updated));
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    pingExtension().then((detected) => setHasExtension(detected));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -25,6 +57,26 @@ function VerificationReport() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDirectSync = async () => {
+    const profile = getEffectiveProfile();
+    setSyncing(true);
+    setSyncFeedback(null);
+    try {
+      await sendProfileToExtension(profile);
+      setSyncFeedback({
+        type: "success",
+        text: "✓ Successfully synced to Sahayak AutoFill extension! Click the extension icon in your browser toolbar to save and encrypt with your passphrase."
+      });
+    } catch (err) {
+      setSyncFeedback({
+        type: "error",
+        text: err.message || "Failed to sync to extension. Please ensure the extension is loaded and enabled."
+      });
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const currentDate = new Date().toLocaleDateString("en-IN", {
@@ -87,7 +139,20 @@ function VerificationReport() {
             <span>←</span> Back to Checklist
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleDirectSync}
+              disabled={syncing}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold shadow-md transition flex items-center gap-2"
+            >
+              <span>⚡</span> {syncing ? "Syncing..." : "1-Click Sync to Extension"}
+            </button>
+            <button
+              onClick={() => setExportModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-semibold transition flex items-center gap-2"
+            >
+              <span>📥</span> Export File
+            </button>
             <button
               onClick={handlePrint}
               className="px-5 py-2 rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-sm font-bold shadow-md transition flex items-center gap-2"
@@ -96,6 +161,28 @@ function VerificationReport() {
             </button>
           </div>
         </div>
+
+        {/* Sync Feedback Toast Banner */}
+        {syncFeedback && (
+          <div
+            className={`p-4 rounded-2xl border text-xs sm:text-sm flex items-center justify-between gap-3 ${
+              syncFeedback.type === "success"
+                ? "bg-indigo-50 border-indigo-200 text-indigo-900 dark:bg-indigo-950/60 dark:border-indigo-800 dark:text-indigo-200"
+                : "bg-red-50 border-red-200 text-red-900 dark:bg-red-950/60 dark:border-red-800 dark:text-red-200"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{syncFeedback.type === "success" ? "⚡" : "⚠️"}</span>
+              <p>{syncFeedback.text}</p>
+            </div>
+            <button
+              onClick={() => setSyncFeedback(null)}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold px-2 py-1"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Printable Certificate Container */}
         <div className="bg-white dark:bg-gray-900 print:dark:bg-white rounded-3xl shadow-xl border border-gray-200 dark:border-gray-800 print:border-2 print:border-gray-300 p-6 sm:p-10 space-y-8 print:p-6 print:space-y-6">
@@ -154,6 +241,33 @@ function VerificationReport() {
                   </a>
                 </div>
               )}
+
+              {/* AutoFill Extension Integration Notice */}
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-gray-800 p-3 rounded-xl border">
+                <div>
+                  <p className="font-bold text-xs text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+                    <span>⚡</span> Sahayak AutoFill Extension Ready
+                  </p>
+                  <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-0.5">
+                    1-Click sync your verified details directly to the extension, or export a file. Aadhaar & PAN are excluded; not affiliated with the Government of India.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDirectSync}
+                    disabled={syncing}
+                    className="whitespace-nowrap px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-sm transition"
+                  >
+                    {syncing ? "Syncing..." : "⚡ 1-Click Sync"}
+                  </button>
+                  <button
+                    onClick={() => setExportModalOpen(true)}
+                    className="whitespace-nowrap px-3 py-1.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-semibold shadow-sm transition"
+                  >
+                    Export File
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -314,6 +428,13 @@ function VerificationReport() {
             <p>Generated by Sahayak on {currentDate}. Privacy-first: no sensitive identity document data is shared with unauthorized third parties.</p>
           </div>
         </div>
+
+        <ExportModal
+          isOpen={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          initialProfile={getEffectiveProfile()}
+          onProfileChange={handleProfileUpdate}
+        />
       </div>
     </div>
   );
