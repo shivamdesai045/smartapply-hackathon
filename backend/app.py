@@ -1098,6 +1098,9 @@ def get_verification_report(service_name):
     else:
         readiness_label = f"{readiness_score}% Ready"
 
+    if request.args.get("finalize") in ("1", "true") or request.args.get("delete_files") in ("1", "true"):
+        db.delete_verified_files(session_id, service_name, variant, user_id=user_id)
+
     return jsonify({
         "service": service_name,
         "variant": variant,
@@ -1111,6 +1114,17 @@ def get_verification_report(service_name):
         "comparisons": mismatch_result.get("comparisons", []),
         "servicePortal": get_service_portal(service_name),
     }), 200
+
+
+@app.route("/api/checklist/<service_name>/purge-files", methods=["POST"])
+@session_or_login_required
+def purge_checklist_files(service_name):
+    """Deletes uploaded files on disk after verification has completed."""
+    session_id = get_request_session_id() or session.get("session_id")
+    user_id = session.get("user_id")
+    variant = request.args.get("variant", "adult")
+    db.delete_verified_files(session_id, service_name, variant, user_id=user_id)
+    return jsonify({"message": "Uploaded files safely purged after verification."}), 200
 
 
 @app.route("/api/chat", methods=["POST"])

@@ -137,6 +137,10 @@ class TestPhase1Security(unittest.TestCase):
         self.assertEqual(masked, "Aadhaar: XXXX XXXX 0123")
         self.assertNotIn("2345", masked)
 
+        raw_12 = "234567890123"
+        masked_12 = db.mask_doc_number(raw_12)
+        self.assertEqual(masked_12, "XXXX XXXX 0123")
+
         h1 = db.hash_doc_number("2345 6789 0123")
         h2 = db.hash_doc_number("234567890123")
         self.assertEqual(h1, h2, "Whitespace normalization must match hashes")

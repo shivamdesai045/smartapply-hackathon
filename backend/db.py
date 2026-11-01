@@ -137,6 +137,17 @@ def init_db():
                 )
                 """
             )
+            # Data minimisation: purge raw_text and ensure doc_number masking
+            cur.execute("UPDATE checklist_progress SET raw_text = NULL WHERE raw_text IS NOT NULL")
+            cur.execute("SELECT session_id, service, variant, requirement, doc_number FROM checklist_progress WHERE doc_number IS NOT NULL")
+            for r in cur.fetchall():
+                if r[4]:
+                    masked = mask_doc_number(r[4])
+                    if masked != r[4]:
+                        cur.execute(
+                            "UPDATE checklist_progress SET doc_number = %s WHERE session_id = %s AND service = %s AND variant = %s AND requirement = %s",
+                            (masked, r[0], r[1], r[2], r[3])
+                        )
 
 def get_progress(session_id, service, variant, user_id=None):
     with get_db_connection() as conn:
@@ -195,8 +206,8 @@ def mark_uploaded(session_id, service, variant, requirement, chosen_option, file
     doc_number_hash = hash_doc_number(raw_doc_num_str)
     masked_doc_num_str = mask_doc_number(raw_doc_num_str)
 
-    diag_enabled = os.getenv("DIAGNOSTICS_ENABLED", "false").lower() in ("true", "1")
-    stored_raw_text = raw_text if diag_enabled else None
+    # Data minimisation: raw OCR text is never stored in DB
+    stored_raw_text = None
     doc_meta_str = json.dumps(doc_meta) if isinstance(doc_meta, dict) else (doc_meta or None)
 
     with get_db_connection() as conn:
@@ -361,8 +372,8 @@ def update_fields(session_id, service, variant, requirement, doc_name, doc_dob, 
     doc_number_hash = hash_doc_number(raw_doc_num_str) if raw_doc_num_str else None
     masked_doc_num_str = mask_doc_number(raw_doc_num_str) if raw_doc_num_str else None
 
-    diag_enabled = os.getenv("DIAGNOSTICS_ENABLED", "false").lower() in ("true", "1")
-    stored_raw_text = raw_text if (diag_enabled and raw_text is not None) else None
+    # Data minimisation: raw OCR text is never stored in DB
+    stored_raw_text = None
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -582,7 +593,7 @@ def delete_session_data(session_id, user_id=None):
         except OSError:
             pass
 
-def cleanup_expired_uploads(retention_hours=24):
+def cleanup_expired_uploads(retention_hours=2):
     """Deletes uploaded files and database records older than retention_hours."""
     cutoff = datetime.now() - timedelta(hours=retention_hours)
     cutoff_iso = cutoff.isoformat()
@@ -718,3 +729,39 @@ def save_correction_step(user_id, service, variant, issue_key, step_index, compl
                 (user_id, service, variant, issue_key, step_index, bool(completed), datetime.now(timezone.utc)),
             )
             conn.commit()
+
+def delete_verified_files(session_id, service, variant, user_id=None):
+    """Deletes uploaded files on disk for a verified checklist to minimize stored identity data."""
+    files_to_delete = []
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            if user_id:
+                cur.execute(
+                    "SELECT file_path FROM checklist_progress WHERE (user_id = %s OR session_id = %s) AND service = %s AND variant = %s AND file_path IS NOT NULL",
+                    (user_id, session_id, service, variant)
+                )
+            else:
+                cur.execute(
+                    "SELECT file_path FROM checklist_progress WHERE session_id = %s AND service = %s AND variant = %s AND file_path IS NOT NULL",
+                    (session_id, service, variant)
+                )
+            rows = cur.fetchall()
+            files_to_delete = [r["file_path"] for r in rows if r.get("file_path")]
+            if user_id:
+                cur.execute(
+                    "UPDATE checklist_progress SET file_path = NULL WHERE (user_id = %s OR session_id = %s) AND service = %s AND variant = %s",
+                    (user_id, session_id, service, variant)
+                )
+            else:
+                cur.execute(
+                    "UPDATE checklist_progress SET file_path = NULL WHERE session_id = %s AND service = %s AND variant = %s",
+                    (session_id, service, variant)
+                )
+        conn.commit()
+
+    for fp in files_to_delete:
+        if fp and os.path.exists(fp):
+            try:
+                os.remove(fp)
+            except OSError:
+                pass
