@@ -24,7 +24,7 @@ function StatsBar() {
   const stats = [
     { icon: "📂", value: data.totalCategories, label: t("services_title") },
     { icon: "📋", value: data.totalServices, label: t("services_available") },
-    { icon: "🌐", value: 4, label: "Languages" },
+    { icon: "🌐", value: 3, label: "Languages" },
   ];
 
   return (

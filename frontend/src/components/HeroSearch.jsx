@@ -6,6 +6,12 @@ import { slugify } from "../utils/slugify";
 import logo from "../assets/logo.png";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+} from "lucide-react";
 
 const bgSlides = [
   "https://commons.wikimedia.org/wiki/Special:FilePath/India_Gate_early_morning.jpg",
@@ -18,7 +24,6 @@ const languages = [
   { code: "en", label: "English" },
   { code: "hi", label: "हिंदी" },
   { code: "mr", label: "मराठी" },
-  { code: "es", label: "Español" },
 ];
 
 function LiveClock({ light }) {
@@ -106,6 +111,8 @@ function HeroSearch() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const firstName = user?.full_name ? user.full_name.trim().split(" ")[0] : "User";
   const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
+const [reducedMotion, setReducedMotion] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
@@ -144,12 +151,30 @@ function HeroSearch() {
     }
   };
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % bgSlides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
+  
+useEffect(() => {
+  const query = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  );
+
+  const update = () => setReducedMotion(query.matches);
+
+  update();
+  query.addEventListener("change", update);
+
+  return () => query.removeEventListener("change", update);
+}, []);
+
+useEffect(() => {
+  if (paused || reducedMotion) return;
+
+  const timer = window.setInterval(() => {
+    setCurrent((previous) => (previous + 1) % bgSlides.length);
+  }, 5000);
+
+  return () => window.clearInterval(timer);
+}, [paused, reducedMotion]);
+
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 300);
@@ -195,7 +220,7 @@ function HeroSearch() {
             {t("nav_home")}
           </Link>
           <Link
-            to="/services"
+            to="/#explore-services"
             className="text-base font-bold text-white/85 hover:text-white transition"
           >
             {t("nav_services")}
@@ -321,17 +346,76 @@ function HeroSearch() {
       </div>
 
       {/* Dots */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-        {bgSlides.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrent(i)}
-            className={`w-2.5 h-2.5 rounded-full transition-colors ${
-              current === i ? "bg-white" : "bg-white/40"
-            }`}
-          />
-        ))}
-      </div>
+      
+<div
+  className="sh-hero-controls"
+  role="group"
+  aria-label={t("home_carousel_controls")}
+>
+  <button
+    type="button"
+    className="sh-hero-control"
+    aria-label={t("home_carousel_prev")}
+    onClick={() =>
+      setCurrent((previous) =>
+        (previous - 1 + bgSlides.length) % bgSlides.length
+      )
+    }
+  >
+    <span>
+      <ChevronLeft size={20} aria-hidden="true" />
+    </span>
+  </button>
+
+  {bgSlides.map((_, index) => (
+    <button
+      key={index}
+      type="button"
+      className="sh-hero-dot"
+      aria-label={t("home_carousel_slide", {
+        number: index + 1,
+      })}
+      aria-current={current === index ? "true" : undefined}
+      onClick={() => setCurrent(index)}
+    >
+      <span />
+    </button>
+  ))}
+
+  <button
+    type="button"
+    className="sh-hero-control"
+    aria-label={t("home_carousel_next")}
+    onClick={() =>
+      setCurrent((previous) => (previous + 1) % bgSlides.length)
+    }
+  >
+    <span>
+      <ChevronRight size={20} aria-hidden="true" />
+    </span>
+  </button>
+
+  <button
+    type="button"
+    className="sh-hero-control"
+    onClick={() => setPaused((previous) => !previous)}
+    aria-label={
+      paused
+        ? t("home_carousel_play")
+        : t("home_carousel_pause")
+    }
+    aria-pressed={paused}
+  >
+    <span>
+      {paused ? (
+        <Play size={18} aria-hidden="true" />
+      ) : (
+        <Pause size={18} aria-hidden="true" />
+      )}
+    </span>
+  </button>
+</div>
+
 
       {/* Compact "popping" header - appears once scrolled past ~half the hero */}
       {scrolled && (

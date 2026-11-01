@@ -1,0 +1,510 @@
+import "./HeroSearchHeader.css";
+import { Search, CalendarDays, Moon, Sun, Folder, LogOut, ChevronDown } from "lucide-react";
+﻿import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { Link, useNavigate } from "react-router-dom";
+import { categories } from "../data/servicesData";
+import { slugify } from "../utils/slugify";
+import logo from "../assets/logo.png";
+import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+
+const bgSlides = [
+  "https://commons.wikimedia.org/wiki/Special:FilePath/India_Gate_early_morning.jpg",
+  "https://commons.wikimedia.org/wiki/Special:FilePath/Gateway_of_India.jpg",
+  "https://commons.wikimedia.org/wiki/Special:FilePath/Red_Fort_Delhi.jpg",
+  "https://commons.wikimedia.org/wiki/Special:FilePath/Taj_Mahal,_Agra,_India.jpg",
+];
+
+const languages = [
+  { code: "en", label: "English" },
+  { code: "hi", label: "\u0939\u093f\u0902\u0926\u0940" },
+  { code: "mr", label: "\u092e\u0930\u093e\u0920\u0940" },
+];
+
+function LiveClock({ light }) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const dateStr = now.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const timeStr = now.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  return (
+    <span
+      className={`text-xs sm:text-sm whitespace-nowrap ${
+        light ? "text-white/90" : "text-gray-600"
+      }`}
+    >
+      <CalendarDays size={16} className="inline-block align-middle mr-1" aria-hidden="true" /> {dateStr} &nbsp; | &nbsp; {timeStr}
+    </span>
+  );
+}
+
+function LanguageSwitcher({ light }) {
+  const { i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  const changeLanguage = (lng) => {
+    i18n.changeLanguage(lng);
+    setOpen(false);
+  };
+
+  const currentLabel =
+    languages.find((l) => l.code === i18n.language)?.label || "English";
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`px-3 py-1.5 rounded border text-sm flex items-center gap-1 whitespace-nowrap ${
+          light
+            ? "border-white/50 text-white hover:bg-white/10"
+            : "border-gray-300 text-gray-700 hover:bg-gray-50"
+        }`}
+      >
+        {currentLabel}
+        <ChevronDown size={14} aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded shadow-lg z-50">
+          {languages.map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => changeLanguage(lang.code)}
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-50 ${
+                i18n.language === lang.code
+                  ? "bg-brand-50 text-brand-700 font-semibold"
+                  : "text-gray-700"
+              }`}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HeroSearch() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
+  const { user, loading, logout } = useAuth();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const firstName = user?.full_name ? user.full_name.trim().split(" ")[0] : "User";
+  const [current, setCurrent] = useState(0);
+  const heroSearchRef = useRef(null);
+  const [headerProgress, setHeaderProgress] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [searchError, setSearchError] = useState("");
+
+  const handleSearch = () => {
+    setSearchError("");
+    if (!searchQuery.trim() && selectedCategory === "All Categories") {
+      setSearchError("Please enter a service name to search.");
+      return;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    let foundService = null;
+
+    for (const cat of categories) {
+      if (selectedCategory !== "All Categories" && cat.title !== selectedCategory && t(cat.title) !== selectedCategory) {
+        continue;
+      }
+      for (const service of cat.services) {
+        const sName = service.name.toLowerCase();
+        const tName = t(service.name).toLowerCase();
+        
+        if (sName.includes(query) || tName.includes(query)) {
+          foundService = service;
+          break;
+        }
+      }
+      if (foundService) break;
+    }
+
+    if (foundService) {
+      navigate(`/checklist/${slugify(foundService.name)}`);
+    } else {
+      setSearchError("No services found.");
+    }
+  };
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % bgSlides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const searchBar = heroSearchRef.current;
+    if (!searchBar) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    );
+
+    let frameId = null;
+
+    const updateHeader = () => {
+      frameId = null;
+
+      const searchBottom =
+        searchBar.getBoundingClientRect().bottom;
+
+      const revealDistance = Math.min(
+        window.innerHeight * 0.55,
+        420
+      );
+
+      const progress = Math.max(
+        0,
+        Math.min(
+          1,
+          (revealDistance - searchBottom) / revealDistance
+        )
+      );
+
+      setHeaderProgress(
+        reduceMotion.matches
+          ? (searchBottom <= 0 ? 1 : 0)
+          : progress
+      );
+    };
+
+    const onScroll = () => {
+      if (frameId === null) {
+        frameId = window.requestAnimationFrame(updateHeader);
+      }
+    };
+
+    updateHeader();
+
+    window.addEventListener("scroll", onScroll, {
+      passive: true
+    });
+
+    window.addEventListener("resize", onScroll);
+    reduceMotion.addEventListener("change", onScroll);
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      reduceMotion.removeEventListener("change", onScroll);
+
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="relative w-full min-h-[760px] overflow-hidden bg-brand-900">
+      {/* Background image crossfade */}
+      {bgSlides.map((bg, i) => (
+        <div
+          key={i}
+          className="absolute inset-0 transition-opacity duration-1000"
+          style={{
+            backgroundImage: `url(${bg})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: current === i ? 1 : 0,
+          }}
+        />
+      ))}
+
+      {/* Darker overlay for legibility */}
+      <div className="absolute inset-0 bg-black/70" />
+
+      {/* Disclaimer strip */}
+      <div className="relative z-20 bg-brand-800/90 text-white text-xs text-center py-1 px-2">
+        {t("notGovtSite")}
+      </div>
+
+      {/* Merged nav row: logo, nav links, language, login, clock */}
+      <div className="relative z-20 flex flex-wrap items-center gap-4 px-6 py-4">
+        <Link to="/" className="shrink-0">
+          <img src={logo} alt="Sahayak" className="h-12 w-auto" />
+        </Link>
+
+        <nav className="flex items-center gap-7 ml-2">
+          <Link
+            to="/"
+            className="text-base font-bold text-white border-b-2 border-white pb-1"
+          >
+            {t("nav_home")}
+          </Link>
+          <Link
+            to="/services"
+            className="text-base font-bold text-white/85 hover:text-white transition"
+          >
+            {t("nav_services")}
+          </Link>
+          <Link
+            to="/about"
+            className="text-base font-bold text-white/85 hover:text-white transition"
+          >
+            {t("nav_about")}
+          </Link>
+        </nav>
+
+        <div className="flex items-center gap-4 ml-auto flex-wrap justify-end">
+          <LiveClock light />
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 rounded-full border border-white/50 text-white hover:bg-white/10 transition"
+            title="Toggle Theme"
+          >
+            {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+          <LanguageSwitcher light />
+          {loading ? (
+            <div className="w-24 h-9 bg-white/20 animate-pulse rounded-full" />
+          ) : user ? (
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 text-white text-sm font-semibold backdrop-blur-sm transition border border-white/30"
+              >
+                <span>Hi, {firstName}</span>
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-50 text-left">
+                  <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Signed in</p>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{user.full_name}</p>
+                  </div>
+                  <Link
+                    to="/my-documents"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    <Folder size={17} aria-hidden="true" /> <span>My Documents</span>
+                  </Link>
+                  <button
+                    onClick={async () => { setUserMenuOpen(false); await logout(); }}
+                    className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  >
+                    <LogOut size={17} aria-hidden="true" /> <span>Logout</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                to="/login"
+                className="px-4 py-1.5 rounded-full bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 whitespace-nowrap shadow-sm"
+              >
+                Log In
+              </Link>
+              <Link
+                to="/register"
+                className="px-4 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white text-sm font-semibold whitespace-nowrap border border-white/30"
+              >
+                Register
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main hero content */}
+      <div className="relative z-10 flex flex-col items-center justify-center px-6 text-center pt-6 pb-10">
+        <img src={logo} alt="Sahayak" className="h-28 sm:h-40 w-auto mb-6" />
+
+        <p className="text-white text-2xl sm:text-4xl font-bold mb-6">
+          {t("hero_main")}
+        </p>
+        <p className="text-white/90 text-lg sm:text-2xl mb-10">
+          {t("hero_sub")}
+        </p>
+
+        {/* Search bar */}
+        <div ref={heroSearchRef} className="w-full max-w-3xl">
+          <div className="flex flex-col sm:flex-row bg-white rounded-lg sm:rounded-full overflow-hidden shadow-lg w-full">
+            <div className="flex items-center flex-1 px-6 py-4">
+              <Search size={20} className="mr-3 shrink-0 text-gray-400" aria-hidden="true" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder={t("searchPlaceholder")}
+                className="w-full outline-none text-base text-gray-700"
+              />
+            </div>
+            <select 
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="appearance-none px-6 py-4 text-base font-medium text-gray-600 border-t sm:border-t-0 sm:border-l border-gray-200 outline-none bg-white cursor-pointer hover:bg-gray-50 transition"
+            >
+              <option value="All Categories">{t("all_categories")}</option>
+              {categories.map((cat, i) => (
+                <option key={i} value={cat.title}>{t(cat.title)}</option>
+              ))}
+            </select>
+            <button 
+              onClick={handleSearch}
+              className="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-10 py-4 text-base"
+            >
+              {t("search_btn")}
+            </button>
+          </div>
+          {searchError && (
+            <div className="mt-3 text-white bg-red-500/80 px-4 py-2 rounded font-medium text-sm">
+              {searchError}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Dots */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+        {bgSlides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrent(i)}
+            className={`w-2.5 h-2.5 rounded-full transition-colors ${
+              current === i ? "bg-white" : "bg-white/40"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Compact "popping" header - appears once scrolled past ~half the hero */}
+            <div
+        aria-hidden={headerProgress < 0.99}
+        inert={headerProgress < 0.99}
+        className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 shadow-lg border-b border-gray-100 dark:border-gray-700"
+        style={{
+          transform: `translate3d(0, ${(headerProgress - 1) * 100}%, 0)`,
+          opacity: headerProgress,
+          pointerEvents: headerProgress >= 0.99 ? "auto" : "none",
+        }}
+      >
+          <div className="hero-sticky-layout flex items-center gap-5 px-6 py-4">
+            <Link to="/" className="hero-sticky-logo shrink-0">
+              <img src={logo} alt="Sahayak" className="h-12 w-auto" />
+            </Link>
+
+            <div className="hero-sticky-search flex min-w-0 w-full items-center border border-gray-300 rounded-full overflow-hidden bg-gray-50 focus-within:border-brand-500 focus-within:bg-white transition relative">
+              <Search size={20} className="ml-4 shrink-0 text-gray-400" aria-hidden="true" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder={t("searchPlaceholder")}
+                className="flex-1 outline-none text-base text-gray-700 bg-transparent px-3 py-2.5"
+              />
+              <select 
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="appearance-none text-sm font-medium text-gray-600 border-l border-gray-200 outline-none bg-white px-4 py-2.5 cursor-pointer hover:bg-gray-50"
+              >
+                <option value="All Categories">{t("all_categories")}</option>
+                {categories.map((cat, i) => (
+                  <option key={i} value={cat.title}>{t(cat.title)}</option>
+                ))}
+              </select>
+              <button 
+                onClick={handleSearch}
+                className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-6 py-2.5 transition"
+              >
+                {t("search_btn")}
+              </button>
+              
+              {searchError && (
+                <div className="absolute top-full left-0 mt-2 bg-red-500 text-white px-4 py-2 rounded shadow-lg text-sm font-medium whitespace-nowrap z-50">
+                  {searchError}
+                </div>
+              )}
+            </div>
+
+            <div className="hero-sticky-actions flex items-center gap-4 ml-auto shrink-0">
+              <LiveClock />
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                title="Toggle Theme"
+              >
+                {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+              <LanguageSwitcher />
+          {loading ? (
+            <div className="w-24 h-9 bg-white/20 animate-pulse rounded-full" />
+          ) : user ? (
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 text-white text-sm font-semibold backdrop-blur-sm transition border border-white/30"
+              >
+                <span>Hi, {firstName}</span>
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-50 text-left">
+                  <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Signed in</p>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{user.full_name}</p>
+                  </div>
+                  <Link
+                    to="/my-documents"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    <Folder size={17} aria-hidden="true" /> <span>My Documents</span>
+                  </Link>
+                  <button
+                    onClick={async () => { setUserMenuOpen(false); await logout(); }}
+                    className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  >
+                    <LogOut size={17} aria-hidden="true" /> <span>Logout</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                to="/login"
+                className="px-4 py-1.5 rounded-full bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 whitespace-nowrap shadow-sm"
+              >
+                Log In
+              </Link>
+              <Link
+                to="/register"
+                className="px-4 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white text-sm font-semibold whitespace-nowrap border border-white/30"
+              >
+                Register
+              </Link>
+            </div>
+          )}
+            </div>
+          </div>
+        </div>
+    </div>
+  );
+}
+
+export default HeroSearch;

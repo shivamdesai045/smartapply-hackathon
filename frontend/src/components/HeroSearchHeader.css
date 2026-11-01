@@ -1,0 +1,82 @@
+
+.hero-sticky-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "logo actions"
+    "search search";
+  gap: 12px 24px;
+  padding: 12px clamp(16px, 3vw, 48px);
+  background: #ffffff;
+}
+
+.hero-sticky-logo {
+  grid-area: logo;
+  justify-self: start;
+}
+
+.hero-sticky-search {
+  grid-area: search;
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+  min-height: 48px;
+}
+
+.hero-sticky-search input {
+  min-width: 0;
+}
+
+.hero-sticky-actions {
+  grid-area: actions;
+  justify-self: end;
+  margin-left: 0;
+}
+
+.dark .hero-sticky-layout {
+  background: #111827;
+}
+
+.dark .hero-sticky-search {
+  background: #1f2937;
+  border-color: #475569;
+}
+
+.dark .hero-sticky-search input {
+  color: #ffffff;
+}
+
+@media (max-width: 720px) {
+  .hero-sticky-layout {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .hero-sticky-logo img {
+    height: 32px;
+  }
+
+  .hero-sticky-actions {
+    gap: 8px;
+  }
+
+  .hero-sticky-actions > :first-child {
+    display: none;
+  }
+
+  .hero-sticky-search select {
+    max-width: 36%;
+    padding-inline: 8px;
+  }
+
+  .hero-sticky-search button {
+    padding-inline: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-sticky-layout,
+  .hero-sticky-search {
+    transition: none !important;
+  }
+}

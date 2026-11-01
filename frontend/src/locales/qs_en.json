@@ -1,0 +1,21 @@
+{
+  "qs_eyebrow": "QUICK START",
+  "qs_title": "Find your application in seconds",
+  "qs_intro": "Choose a service, see the checklist, and check documents before applying.",
+  "qs_search_label": "Search for a service",
+  "qs_search_placeholder": "Search a service: PAN, Passport, Aadhaar update...",
+  "qs_search_button": "Find service",
+  "qs_clear": "Clear search",
+  "qs_matches": "Matching services",
+  "qs_quick_picks": "Quick picks",
+  "qs_no_results": "No matching service found. Try a different name.",
+  "qs_categories": "Service categories",
+  "qs_services": "Available services",
+  "qs_languages": "Languages",
+  "qs_overview": "Service overview",
+  "qs_how_title": "How it works",
+  "qs_step_choose": "Pick a service",
+  "qs_step_upload": "Upload documents",
+  "qs_step_check": "Check mismatches",
+  "qs_disclaimer": "Independent helper. Not an official government website."
+}

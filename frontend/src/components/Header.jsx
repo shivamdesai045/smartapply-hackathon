@@ -9,7 +9,6 @@ const languages = [
   { code: "en", label: "English" },
   { code: "hi", label: "हिंदी" },
   { code: "mr", label: "मराठी" },
-  { code: "es", label: "Español" },
 ];
 
 function Header() {
@@ -202,7 +201,7 @@ function Header() {
           {t("nav_home")}
         </NavLink>
         <NavLink
-          to="/services"
+         to="/#explore-services"
           className={({ isActive }) =>
             `text-base font-bold transition ${
               isActive

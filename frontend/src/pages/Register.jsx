@@ -134,7 +134,7 @@ function Register() {
               <option value="en">English</option>
               <option value="hi">हिंदी (Hindi)</option>
               <option value="mr">मराठी (Marathi)</option>
-              <option value="es">Español (Spanish)</option>
+             
             </select>
           </div>
 

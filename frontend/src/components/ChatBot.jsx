@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { sendChatMessage } from "../lib/api";
+import ChatButton from "./ChatButton";
 
 const QUICK_ACTIONS = [
   { label: "Documents for Passport?", query: "What documents are required for Passport?" },
@@ -220,19 +221,15 @@ function ChatBot() {
   return (
     <>
       {/* Floating Toggle Button */}
-      <button
-        onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-brand-600 hover:bg-brand-700 text-white shadow-2xl flex items-center justify-center text-2xl z-40 transition-transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-brand-400 print:hidden"
-        title="Chat with Sahayak AI"
-        aria-label="Chat with Sahayak Assistant"
-        aria-expanded={open}
-      >
-        {open ? "✕" : "💬"}
-      </button>
+      <ChatButton
+  open={open}
+  onClick={() => setOpen((previous) => !previous)}
+/>
 
       {/* Chat Window */}
       {open && (
         <aside
+        id="sahayak-chat-panel"
           role="complementary"
           aria-label="Sahayak AI Assistant"
           className="fixed bottom-24 right-4 sm:right-6 w-[calc(100vw-2rem)] sm:w-96 md:w-[420px] h-[580px] max-h-[80vh] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col z-40 overflow-hidden animate-fade-in print:hidden"

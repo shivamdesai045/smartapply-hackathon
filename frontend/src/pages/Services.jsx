@@ -1,57 +1,75 @@
-import { Link } from "react-router-dom";
-import { useServices } from "../hooks/useServices";
+
+import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useServices } from "../hooks/useServices";
 import { slugify } from "../utils/slugify";
 
-function Services() {
-  const { data, loading, error } = useServices();
+export default function Services() {
+  const { id } = useParams();
   const { t } = useTranslation();
+  const { data, loading, error, retry } = useServices();
+
+  const visibleCategories = (data?.categories || []).filter(
+    (category) => !id || category.id === id
+  );
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="text-2xl font-bold text-brand-700 dark:text-brand-400 mb-2">{t("services_title")}</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-8">
+    <main className="max-w-6xl mx-auto px-6 py-10">
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+        {id && visibleCategories.length
+          ? t(visibleCategories[0].title)
+          : t("services_title")}
+      </h1>
+
+      <p className="text-gray-600 dark:text-gray-300 mb-8">
         {t("services_desc")}
       </p>
 
-      {loading && (
-        <p className="text-gray-400 text-sm">{t("services_loading")}</p>
-      )}
+      {loading && <p role="status">{t("services_loading")}</p>}
 
       {error && (
-        <p className="text-red-500 text-sm">
-          {t("services_error")} ({error})
+        <div role="alert" className="flex items-center gap-4">
+          <p>{t("services_error")}</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="px-4 py-3 bg-indigo-600 text-white rounded-xl"
+          >
+            {t("home_retry")}
+          </button>
+        </div>
+      )}
+
+      {data && visibleCategories.length === 0 && (
+        <p className="text-gray-600 dark:text-gray-300">
+          {t("home_no_categories")}
         </p>
       )}
 
-      {data &&
-        data.categories.map((cat, i) => (
-          <div key={i} className="mb-10">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-2xl">{cat.icon}</span>
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                {t(cat.title)}
-              </h2>
-            </div>
+      {visibleCategories.map((category) => (
+        <section key={category.id} className="mb-10">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            {t(category.title)}
+          </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {cat.services.map((service, j) => (
-                <Link
-                  key={j}
-                  to={`/checklist/${slugify(service.name)}`}
-                  className="text-left border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:border-brand-500 dark:hover:border-brand-500 hover:shadow-md transition bg-white dark:bg-gray-800 block"
-                >
-                  <div className="font-medium text-brand-700 dark:text-brand-400 mb-1">
-                    {t(service.name)}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">{t(service.desc)}</div>
-                </Link>
-              ))}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {category.services.map((service) => (
+              <Link
+                key={service.name}
+                to={`/checklist/${slugify(service.name)}`}
+                className="block rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 hover:border-indigo-600 hover:shadow-md focus-visible:outline-3 focus-visible:outline-indigo-600 transition"
+              >
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {t(service.name)}
+                </h3>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                  {t(service.desc)}
+                </p>
+              </Link>
+            ))}
           </div>
-        ))}
-    </div>
+        </section>
+      ))}
+    </main>
   );
 }
-
-export default Services;

@@ -7,10 +7,10 @@ import {
   uploadChecklistFile,
   updateChecklistFields,
   getChecklistFileUrl,
+  fetchFileBlob,
   fetchChecklistMismatches,
   postMismatchDecision,
   fetchCorrectionGuidancePair,
-  fetchChecklistDiagnostics,
   rescanDocument,
   skipRequirement,
   deleteSessionData,
@@ -18,6 +18,9 @@ import {
   saveCorrectionStep,
 } from "../lib/api";
 import DocumentViewerModal from "../components/DocumentViewerModal";
+import MissingDocumentHelp from "../components/MissingDocumentHelp";
+import MismatchResolutionCard from "../components/MismatchResolutionCard";
+import { Eye } from "lucide-react";
 import { getSessionId, initSession } from "../lib/session";
 import { useTranslation } from "react-i18next";
 import { getServiceNameFromSlug } from "../utils/slugify";
@@ -185,6 +188,107 @@ function OcrEditForm({ serviceName, sessionId, variant, requirement, reqData, on
   );
 }
 
+
+function SecureDocumentPreview({ fileUrl, alt }) {
+  const { t } = useTranslation();
+
+  const [preview, setPreview] = useState({
+    url: null,
+    mime: "",
+    loading: true,
+    error: null,
+  });
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl = null;
+
+    setPreview({
+      url: null,
+      mime: "",
+      loading: true,
+      error: null,
+    });
+
+    fetchFileBlob(fileUrl)
+      .then((blob) => {
+        if (!active) return;
+
+        objectUrl = URL.createObjectURL(blob);
+
+        setPreview({
+          url: objectUrl,
+          mime: (blob.type || "").toLowerCase(),
+          loading: false,
+          error: null,
+        });
+      })
+      .catch((error) => {
+        if (!active) return;
+
+        setPreview({
+          url: null,
+          mime: "",
+          loading: false,
+          error: error.message || t("doc_inline_error"),
+        });
+      });
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [fileUrl, t]);
+
+  if (preview.loading) {
+    return (
+      <div role="status" className="p-4 text-center text-sm text-slate-500 dark:text-slate-300">
+        {t("doc_inline_loading")}
+      </div>
+    );
+  }
+
+  if (preview.error) {
+    return (
+      <div role="alert" className="p-4 text-center text-sm text-red-600 dark:text-red-300">
+        {t("doc_inline_error")}: {preview.error}
+      </div>
+    );
+  }
+
+  if (preview.mime.includes("pdf")) {
+    return (
+      <iframe
+        src={preview.url}
+        title={t("doc_inline_title")}
+        className="h-full w-full border-0 bg-white"
+      />
+    );
+  }
+
+  if (preview.mime.startsWith("image/")) {
+    return (
+      <img
+        src={preview.url}
+        alt={alt || t("doc_inline_title")}
+        className="max-h-full max-w-full object-contain"
+        onError={() =>
+          setPreview((old) => ({
+            ...old,
+            error: t("doc_inline_unavailable"),
+          }))
+        }
+      />
+    );
+  }
+
+  return (
+    <p role="status" className="p-4 text-center text-sm text-slate-500 dark:text-slate-300">
+      {t("doc_inline_unavailable")}
+    </p>
+  );
+}
+
 function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, user }) {
   const { t } = useTranslation();
   const { openLoginModal } = useAuth();
@@ -256,17 +360,6 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
     }
   };
 
-  const fieldConfs = reqData.fieldConfidence || (lastOcr && (lastOcr.fieldConfidence || lastOcr.fieldConfidences)) || {};
-  const needsRev = reqData.needsReview || (lastOcr && lastOcr.needsReview) || {};
-
-  const isFieldUnverified = (field, val) => {
-    if (!val) return true;
-    if (needsRev && needsRev[field] === true) return true;
-    const conf = fieldConfs && fieldConfs[field];
-    if (typeof conf === "number" && conf > 0 && conf < 0.70) return true;
-    return false;
-  };
-
   const ocrInfo = lastOcr || (reqData.uploaded ? {
     name: reqData.docName,
     dob: reqData.docDob,
@@ -274,17 +367,15 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
     doc_number: reqData.docNumber ? { type: "ID", number: reqData.docNumber } : null,
   } : null);
 
-  const hasUnverifiedRequired = !isPhotoSig && !isSkipped && reqData.uploaded && !reqData.manuallyEdited && (
-    !ocrInfo ||
-    !ocrInfo.name ||
-    isFieldUnverified("name", ocrInfo.name) ||
-    (ocrInfo.dob && isFieldUnverified("dob", ocrInfo.dob)) ||
-    (ocrInfo.address && isFieldUnverified("address", ocrInfo.address)) ||
-    (needsRev && Object.values(needsRev).some((v) => v === true))
-  );
-
   const foundNothing = ocrInfo && !ocrInfo.name && !ocrInfo.dob && !ocrInfo.address && !ocrInfo.doc_number;
-  const viewUrl = reqData.filePath && reqData.filePath !== "SKIPPED" ? getChecklistFileUrl(serviceName, sessionId, variant, reqData.requirement) : null;
+  const viewUrl = reqData.uploaded && user && !isSkipped
+    ? getChecklistFileUrl(
+        serviceName,
+        sessionId,
+        variant,
+        reqData.requirement
+      )
+    : null;
   const notSupported = ocrInfo && ocrInfo.ocrAttempted === false;
 
   const subjectLabel = reqData.subject && reqData.subject !== "applicant" ? reqData.subject : null;
@@ -320,23 +411,10 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm">
       <div className="flex items-start gap-3 mb-3">
-        <span
-          className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
-            !reqData.uploaded
-              ? "bg-gray-100 dark:bg-gray-700 text-gray-400"
-              : hasUnverifiedRequired
-              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-300"
-              : "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
-          }`}
-          title={
-            !reqData.uploaded
-              ? "Not uploaded"
-              : hasUnverifiedRequired
-              ? "Fields need verification or review"
-              : "All fields verified"
-          }
-        >
-          {!reqData.uploaded ? "" : hasUnverifiedRequired ? "⚠" : "✓"}
+        <span className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
+          reqData.uploaded ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300" : "bg-gray-100 dark:bg-gray-700 text-gray-400"
+        }`}>
+          {reqData.uploaded ? "✓" : ""}
         </span>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -358,13 +436,15 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
             {viewUrl && (
               <div className="flex items-center gap-1.5 ml-auto">
                 <button
-                  type="button"
-                  onClick={() => setViewerOpen(true)}
-                  className="px-2.5 py-1 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs font-semibold flex items-center gap-1 text-gray-700 dark:text-gray-200 transition"
-                  title="View Document"
-                >
-                  <span>👁️</span> View
-                </button>
+    type="button"
+    onClick={() => setViewerOpen(true)}
+    aria-label={`${t("view")}: ${reqData.requirement}`}
+    title={t("view")}
+    className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-indigo-700 dark:bg-slate-700 dark:text-indigo-200"
+  >
+    <Eye size={18} aria-hidden="true" />
+    <span>{t("view")}</span>
+  </button>
                 {!isPhotoSig && (
                   <button
                     type="button"
@@ -479,11 +559,7 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
         {sideBySide && viewUrl && !isPhotoSig && (
           <div className="hidden lg:grid grid-cols-2 gap-4 p-3 bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-gray-200 dark:border-gray-700">
             <div className="h-64 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-900/10 flex items-center justify-center">
-              {viewUrl.toLowerCase().includes(".pdf") ? (
-                <iframe src={viewUrl} title="Document Preview" className="w-full h-full border-0" />
-              ) : (
-                <img src={viewUrl} alt={reqData.chosenOption} className="max-w-full max-h-full object-contain" />
-              )}
+              <SecureDocumentPreview fileUrl={viewUrl} alt={reqData.chosenOption} />
             </div>
             <div className="flex flex-col justify-center space-y-2 text-xs">
               <span className="font-bold text-gray-700 dark:text-gray-300">Side-by-Side OCR Verification</span>
@@ -513,46 +589,12 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
             {!notSupported && !foundNothing && (
               <>
                 <span className="font-semibold text-brand-700 dark:text-brand-400">OCR Extracted: </span>
-                {ocrInfo.name && (
-                  <span className="mr-2 inline-flex items-center gap-1">
-                    <strong>Name:</strong> {ocrInfo.name}
-                    {isFieldUnverified("name", ocrInfo.name) && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
-                        ⚠ Please verify
-                      </span>
-                    )}
-                  </span>
-                )}
-                {ocrInfo.dob && (
-                  <span className="mr-2 inline-flex items-center gap-1">
-                    <strong>DOB:</strong> {ocrInfo.dob}
-                    {isFieldUnverified("dob", ocrInfo.dob) && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
-                        ⚠ Please verify
-                      </span>
-                    )}
-                  </span>
-                )}
-                {ocrInfo.address && (
-                  <span className="mr-2 inline-flex items-center gap-1">
-                    <strong>Address:</strong> {ocrInfo.address}
-                    {isFieldUnverified("address", ocrInfo.address) && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
-                        ⚠ Please verify
-                      </span>
-                    )}
-                  </span>
-                )}
+                {ocrInfo.name && <span className="mr-2"><strong>Name:</strong> {ocrInfo.name}</span>}
+                {ocrInfo.dob && <span className="mr-2"><strong>DOB:</strong> {ocrInfo.dob}</span>}
+                {ocrInfo.address && <span className="mr-2"><strong>Address:</strong> {ocrInfo.address}</span>}
                 {ocrInfo.doc_number && (
-                  <span className="mr-2 inline-flex items-center gap-1">
-                    <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-mono text-[11px]">
-                      {ocrInfo.doc_number.type || "ID"}: {maskAadhaar(ocrInfo.doc_number.number)}
-                    </span>
-                    {isFieldUnverified("doc_number", ocrInfo.doc_number.number) && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
-                        ⚠ Please verify
-                      </span>
-                    )}
+                  <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-mono text-[11px]">
+                    {ocrInfo.doc_number.type || "ID"}: {maskAadhaar(ocrInfo.doc_number.number)}
                   </span>
                 )}
               </>
@@ -835,11 +877,9 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
     totalComparisons: 0,
   };
 
-  const anyUnverifiedFields = (data?.unverifiedFieldCount && data?.unverifiedFieldCount > 0) || !data?.clean;
-  const isVerified = data?.verificationStatus === "verified" && !anyUnverifiedFields;
+  const isVerified = data?.verificationStatus === "verified" || (data && summary.mismatches === 0 && summary.possibleMismatches === 0);
   const isPartial = data?.verificationStatus === "partially_verified";
-  const isNotVerified = !isVerified && !isPartial && (data?.verificationStatus === "not_verified" || anyUnverifiedFields || (summary.mismatches === 0 && summary.possibleMismatches === 0));
-  const _hasIssues = !isVerified && !isPartial && !isNotVerified;
+  const _hasIssues = !isVerified && !isPartial;
 
   const getResultBadge = (result) => {
     switch (result) {
@@ -906,9 +946,7 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
       )}
 
       {!loading && data && data.enoughData && (() => {
-        const pending = data.issues ? data.issues.filter((i) => i.decision === null) : [];
-        const confirmed = data.issues ? data.issues.filter((i) => i.decision === "confirmed") : [];
-        const ignored = data.issues ? data.issues.filter((i) => i.decision === "ignored") : [];
+        const issues = data.issues || [];
         const comparisons = data.comparisons || [];
 
         return (
@@ -919,8 +957,6 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                 ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100"
                 : isPartial
                 ? "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100"
-                : isNotVerified
-                ? "bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100"
                 : "bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 text-rose-900 dark:text-rose-100"
             }`}>
               <div className="flex items-start gap-3">
@@ -929,11 +965,9 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                     ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100"
                     : isPartial
                     ? "bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100"
-                    : isNotVerified
-                    ? "bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100"
                     : "bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100"
                 }`}>
-                  {isVerified ? "✓" : isPartial ? "!" : isNotVerified ? "ℹ" : "✕"}
+                  {isVerified ? "✓" : isPartial ? "!" : "✕"}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -942,8 +976,6 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                         ? "All Documents Verified and Consistent"
                         : isPartial
                         ? "Partially Verified — Review Details"
-                        : isNotVerified
-                        ? "Not Verified — Incomplete or Unverified Fields"
                         : "Discrepancies Found — Action Required"}
                     </h2>
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -951,11 +983,9 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                         ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100"
                         : isPartial
                         ? "bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100"
-                        : isNotVerified
-                        ? "bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100"
                         : "bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100"
                     }`}>
-                      {isVerified ? "All Clear / Verified" : isPartial ? "Partially Verified" : isNotVerified ? "Not Verified" : "Issues Found"}
+                      {isVerified ? "Verified" : isPartial ? "Partially Verified" : "Issues Found"}
                     </span>
                   </div>
                   <p className="text-xs mt-1 leading-relaxed opacity-90">
@@ -963,8 +993,6 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                       ? "All extracted details across your uploaded documents match consistently. Your documents are ready for your application."
                       : isPartial
                       ? "Most fields match, but some could not be cross-verified or contain minor differences (e.g. initial or middle name variations)."
-                      : isNotVerified
-                      ? "Some required fields could not be verified across your documents. Please review and ensure all details are present."
                       : "Differences in Name, Date of Birth, or other critical fields were detected between your documents. Review guidance below before submitting."}
                   </p>
                 </div>
@@ -1086,46 +1114,29 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
               </div>
             )}
 
-            {/* Discrepancy Resolution & Guidance Cards (when issues exist) */}
-            {!isVerified && (pending.length > 0 || confirmed.length > 0) && (
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Discrepancy Resolution & Next Steps
-                </h2>
-                <div className="space-y-3">
-                  {pending.map((issue, i) => (
-                    <PendingIssueCard
-                      key={i}
-                      serviceName={serviceName}
-                      sessionId={sessionId}
-                      variant={variant}
-                      issue={issue}
-                      onDecided={load}
-                      completedSteps={correctionSteps[issue.issueKey] || []}
-                      onToggleStep={handleToggleStep}
-                    />
-                  ))}
-                  {confirmed.map((issue, i) => (
-                    <ConfirmedIssueCard
-                      key={i}
-                      issue={issue}
-                      completedSteps={correctionSteps[issue.issueKey] || []}
-                      onToggleStep={handleToggleStep}
-                    />
-                  ))}
+            {/* User-led decision: confirm mismatch -> choose incorrect document -> correction guide */}
+            {issues.length > 0 && (
+              <section aria-labelledby="mismatch-resolution-title" className="mb-6 space-y-4">
+                <div>
+                  <h2 id="mismatch-resolution-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+                    {t("mf_section_heading")}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    {t("mf_section_intro")}
+                  </p>
                 </div>
-              </div>
-            )}
-
-            {ignored.length > 0 && (
-              <div className="mb-4 space-y-1">
-                {ignored.map((issue, i) => (
-                  <IgnoredIssueRow key={i} issue={issue} onUndo={async () => {
-                    await postMismatchDecision(serviceName, sessionId, variant, issue.field, issue.documents, "confirmed");
-                    load();
-                  }} />
+                {issues.map((issue) => (
+                  <MismatchResolutionCard
+                    key={issue.issueKey}
+                    issue={issue}
+                    serviceName={serviceName}
+                    sessionId={sessionId}
+                    variant={variant}
+                    onChanged={load}
+                    onBack={onBack}
+                  />
                 ))}
-              </div>
+              </section>
             )}
 
             {/* Optional manual self-report tool for subtle differences */}
@@ -1188,196 +1199,6 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
           </>
         );
       })()}
-      <DevDiagnosticViewer
-        serviceName={serviceName}
-        sessionId={sessionId}
-        variant={variant}
-        refreshTrigger={data}
-      />
-    </div>
-  );
-}
-
-function DevDiagnosticViewer({ serviceName, sessionId, variant, refreshTrigger }) {
-  const [open, setOpen] = useState(false);
-  const [diagData, setDiagData] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const loadDiagnostics = useCallback(async () => {
-    if (!serviceName || !sessionId || !variant) return;
-    setLoading(true);
-    try {
-      const res = await fetchChecklistDiagnostics(serviceName, sessionId, variant);
-      setDiagData(res.documents || []);
-    } catch (err) {
-      console.warn("Dev diagnostics load error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [serviceName, sessionId, variant]);
-
-  useEffect(() => {
-    if (open) {
-      loadDiagnostics();
-    }
-  }, [open, loadDiagnostics, refreshTrigger]);
-
-  if (!import.meta.env.DEV) {
-    return null;
-  }
-
-  return (
-    <div className="mt-8 border-2 border-dashed border-amber-300 dark:border-amber-700/60 rounded-xl p-4 bg-amber-50/40 dark:bg-amber-950/20">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🛠️</span>
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
-              Developer OCR Diagnostics
-            </span>
-            <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800/60 text-amber-900 dark:text-amber-200 font-mono">
-              DEV ONLY
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {open && (
-            <button
-              onClick={loadDiagnostics}
-              disabled={loading}
-              className="text-xs px-2.5 py-1 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 text-gray-700 dark:text-gray-300 transition"
-            >
-              {loading ? "Refreshing..." : "🔄 Refresh"}
-            </button>
-          )}
-          <button
-            onClick={() => setOpen(!open)}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition shadow-sm"
-          >
-            {open ? "Hide Diagnostics ▲" : "Show Raw OCR vs Parsed Fields ▼"}
-          </button>
-        </div>
-      </div>
-
-      {open && (
-        <div className="mt-4 pt-4 border-t border-amber-200 dark:border-amber-800/60 space-y-4">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            This developer view shows the exact raw text output emitted by the OCR engine
-            separately from the structured fields extracted by the regex parsers.
-            <strong className="block text-amber-800 dark:text-amber-300 mt-0.5">
-              Strictly hidden in production to prevent exposing sensitive document contents.
-            </strong>
-          </p>
-
-          {loading && (
-            <div className="py-4 text-center text-xs text-gray-500">Loading diagnostic data...</div>
-          )}
-
-          {!loading && (!diagData || diagData.length === 0) && (
-            <div className="py-4 text-center text-xs text-gray-500 italic">
-              No uploaded documents found for this session yet. Upload a document above to inspect its OCR pipeline.
-            </div>
-          )}
-
-          {!loading && diagData && diagData.length > 0 && (
-            <div className="space-y-4">
-              {diagData.map((doc, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm"
-                >
-                  <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
-                    <div>
-                      <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-100">
-                        {doc.requirement}
-                      </h4>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Document Option: <span className="font-medium text-gray-700 dark:text-gray-300">{doc.chosenOption || "Standard"}</span>
-                      </span>
-                    </div>
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
-                      Engine: Tesseract OCR 5.5
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Left: Raw OCR Output */}
-                    <div className="flex flex-col">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">
-                          1. Raw OCR Output (Verbatim)
-                        </span>
-                        <span className="text-[10px] text-gray-400">
-                          {doc.rawOcrText ? `${doc.rawOcrText.length} chars` : "Empty"}
-                        </span>
-                      </div>
-                      <pre className="flex-1 font-mono text-[11px] bg-gray-900 text-gray-100 dark:bg-black dark:text-green-300 p-3 rounded-lg overflow-x-auto max-h-72 leading-relaxed whitespace-pre-wrap select-all border border-gray-800">
-                        {doc.rawOcrText || "(No raw OCR text detected)"}
-                      </pre>
-                    </div>
-
-                    {/* Right: Extracted Fields */}
-                    <div className="flex flex-col">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1">
-                        2. Extracted Structured Fields
-                      </span>
-                      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600 space-y-2.5 flex-1">
-                        <div>
-                          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Full Name:</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`text-xs font-semibold ${doc.extractedFields?.name ? "text-gray-900 dark:text-gray-100" : "text-gray-400 italic"}`}>
-                              {doc.extractedFields?.name || "Not detected"}
-                            </span>
-                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${doc.extractedFields?.name ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" : "bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300"}`}>
-                              {doc.extractedFields?.name ? "Parsed" : "Missing"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Date of Birth (DOB):</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`text-xs font-semibold ${doc.extractedFields?.dob ? "text-gray-900 dark:text-gray-100" : "text-gray-400 italic"}`}>
-                              {doc.extractedFields?.dob || "Not detected"}
-                            </span>
-                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${doc.extractedFields?.dob ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" : "bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300"}`}>
-                              {doc.extractedFields?.dob ? "Parsed" : "Missing"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Document / ID Number:</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`text-xs font-semibold font-mono ${doc.extractedFields?.docNumber ? "text-blue-700 dark:text-blue-300" : "text-gray-400 italic"}`}>
-                              {maskAadhaar(doc.extractedFields?.docNumber) || "Not detected"}
-                            </span>
-                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${doc.extractedFields?.docNumber ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" : "bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300"}`}>
-                              {doc.extractedFields?.docNumber ? "Parsed" : "Missing"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Address:</div>
-                          <div className="flex items-start gap-2 mt-0.5">
-                            <span className={`text-xs leading-relaxed ${doc.extractedFields?.address ? "text-gray-900 dark:text-gray-100" : "text-gray-400 italic"}`}>
-                              {doc.extractedFields?.address || "Not detected"}
-                            </span>
-                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium shrink-0 ${doc.extractedFields?.address ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" : "bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300"}`}>
-                              {doc.extractedFields?.address ? "Parsed" : "Missing"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -1536,10 +1357,9 @@ function Checklist() {
   }
 
   const reqList = checklistData?.requirements || checklistData?.status || [];
+  const uploadedCount = checklistData?.uploadedCount ?? reqList.filter((r) => r.uploaded).length;
+  const comparableCount = checklistData?.comparableCount ?? 0;
   const totalCount = checklistData?.totalCount ?? reqList.length;
-  const uploadedCount = Math.min(checklistData?.uploadedCount ?? reqList.filter((r) => r.uploaded).length, totalCount);
-  const comparableCount = Math.min(checklistData?.comparableCount ?? 0, totalCount);
-  const readyCount = Math.min(checklistData?.readyCount ?? comparableCount, totalCount);
 
   if (step === "mismatch" && selectedVariant) {
     return (
@@ -1654,7 +1474,7 @@ function Checklist() {
                 : "Check documents for mismatches"
             }
           >
-            Check Mismatches ({Math.min(comparableCount, Math.min(2, totalCount))}/{Math.min(2, totalCount)} ready) →
+            Check Mismatches ({comparableCount}/2 ready) →
           </button>
         </div>
       </div>
@@ -1689,6 +1509,12 @@ function Checklist() {
         </div>
       )}
 
+      {!loading && !error && reqList.some(
+        (r) => !r.uploaded && !r.skipped
+      ) && (
+        <MissingDocumentHelp requirements={reqList} />
+      )}
+
       {!loading && !error && reqList.length > 0 && (
         <div className="space-y-4">
           {reqList.map((req, idx) => (
@@ -1706,12 +1532,6 @@ function Checklist() {
       )}
 
       {/* Dev-only Diagnostic View */}
-      <DevDiagnosticViewer
-        serviceName={serviceName}
-        sessionId={sessionId}
-        variant={selectedVariant}
-        refreshTrigger={checklistData}
-      />
     </div>
   );
 }

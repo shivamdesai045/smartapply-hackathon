@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
+const API_BASE = "http://localhost:5000";
 
 function handleLoginRequired(msg) {
   if (typeof window !== "undefined") {
@@ -192,8 +192,10 @@ export async function fetchChecklistDiagnostics(serviceName, sessionId, variant)
     serviceName
   )}/diagnostics?session_id=${encodeURIComponent(sessionId)}&variant=${encodeURIComponent(
     variant
-  )}`;
-  return request(url);
+  )}&dev=true`;
+  return request(url, {
+    headers: { "X-Dev-Mode": "true" },
+  });
 }
 
 export async function fetchCorrectionGuidancePair(docA, docB, field) {
@@ -307,37 +309,4 @@ export async function fetchMe() {
   } catch {
     return null;
   }
-}
-
-
-export async function submitFeedback({
-  serviceName,
-  sessionId,
-  variant,
-  requirement,
-  docType,
-  original,
-  corrected,
-  fieldConfidences,
-}) {
-  const url = `${API_BASE}/api/feedback`;
-  return request(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      session_id: sessionId,
-      service: serviceName,
-      variant,
-      requirement,
-      doc_type: docType,
-      original,
-      corrected,
-      field_confidences: fieldConfidences,
-    }),
-  });
-}
-
-export async function fetchFeedbackStats() {
-  const url = `${API_BASE}/api/feedback/stats`;
-  return request(url);
 }
