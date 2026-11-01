@@ -454,6 +454,7 @@ def update_checklist_fields(service_name):
     """
     Lets the user correct OCR-extracted values (or fill them in manually).
     Marks record as manually_edited = True.
+    Captures user correction into the continuous adaptation feedback store.
     """
     data = request.get_json(silent=True)
     if not data:
@@ -467,13 +468,104 @@ def update_checklist_fields(service_name):
         return jsonify({"error": "session_id and requirement are required"}), 400
 
     user_id = session.get("user_id")
+
+    # Feedback loop: Capture user correction diff for ML continuous adaptation
+    try:
+        from ml.feedback.feedback_store import record_feedback
+        progress_map = db.get_progress(session_id, service_name, variant, user_id=user_id)
+        current_req = progress_map.get(requirement) or {}
+        orig_fields = {
+            "name": current_req.get("docName"),
+            "dob": current_req.get("docDob"),
+            "address": current_req.get("docAddress"),
+            "doc_number": current_req.get("docNumber"),
+        }
+        new_fields = {
+            "name": data.get("doc_name") or data.get("docName"),
+            "dob": data.get("doc_dob") or data.get("docDob"),
+            "address": data.get("doc_address") or data.get("docAddress"),
+            "doc_number": data.get("doc_number") or data.get("docNumber"),
+        }
+        file_path = current_req.get("filePath")
+        chosen_opt = current_req.get("chosenOption") or requirement
+        record_feedback(
+            doc_type=chosen_opt,
+            original_fields=orig_fields,
+            corrected_fields=new_fields,
+            file_path=file_path,
+            session_id=session_id,
+            service_name=service_name,
+            variant=variant,
+            requirement=requirement,
+        )
+    except Exception:
+        pass
+
     db.update_fields(
         session_id, service_name, variant, requirement,
-        data.get("doc_name") or None, data.get("doc_dob") or None,
-        data.get("doc_address") or None, data.get("doc_number") or None,
+        data.get("doc_name") or data.get("docName") or None,
+        data.get("doc_dob") or data.get("docDob") or None,
+        data.get("doc_address") or data.get("docAddress") or None,
+        data.get("doc_number") or data.get("docNumber") or None,
         manually_edited=True, user_id=user_id,
     )
     return jsonify({"message": "Fields updated successfully"})
+
+
+@app.route("/api/feedback", methods=["POST"])
+@session_or_login_required
+@limiter.limit("30 per minute")
+def submit_feedback():
+    """
+    Explicit endpoint for recording user corrections & feedback for continuous ML adaptation.
+    """
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({"error": "Request body must be JSON"}), 400
+
+    from ml.feedback.feedback_store import record_feedback
+
+    session_id = data.get("session_id") or get_request_session_id() or session.get("session_id")
+    service_name = data.get("service") or data.get("service_name")
+    variant = data.get("variant", "adult")
+    requirement = data.get("requirement")
+    doc_type = data.get("doc_type") or data.get("chosen_option") or requirement or "General"
+
+    orig_fields = data.get("original") or data.get("original_fields") or {}
+    corr_fields = data.get("corrected") or data.get("corrected_fields") or {}
+    field_confidences = data.get("field_confidences") or {}
+
+    user_id = session.get("user_id")
+    file_path = None
+    if session_id and service_name and requirement:
+        file_path = db.get_file_path(session_id, service_name, variant, requirement, user_id=user_id)
+
+    record = record_feedback(
+        doc_type=doc_type,
+        original_fields=orig_fields,
+        corrected_fields=corr_fields,
+        field_confidences=field_confidences,
+        file_path=file_path,
+        session_id=session_id,
+        service_name=service_name,
+        variant=variant,
+        requirement=requirement,
+    )
+
+    return jsonify({
+        "status": "ok",
+        "feedback_id": record["feedback_id"] if record else None,
+        "feature_samples_captured": record["feature_samples_count"] if record else 0,
+    }), 200
+
+
+@app.route("/api/feedback/stats", methods=["GET"])
+@session_or_login_required
+def feedback_stats():
+    """Returns summary counts of captured user feedback."""
+    from ml.feedback.feedback_store import get_feedback_stats
+    stats = get_feedback_stats()
+    return jsonify(stats), 200
 
 
 @app.route("/api/checklist/<service_name>/skip", methods=["POST"])

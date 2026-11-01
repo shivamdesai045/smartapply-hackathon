@@ -308,3 +308,36 @@ export async function fetchMe() {
     return null;
   }
 }
+
+
+export async function submitFeedback({
+  serviceName,
+  sessionId,
+  variant,
+  requirement,
+  docType,
+  original,
+  corrected,
+  fieldConfidences,
+}) {
+  const url = `${API_BASE}/api/feedback`;
+  return request(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session_id: sessionId,
+      service: serviceName,
+      variant,
+      requirement,
+      doc_type: docType,
+      original,
+      corrected,
+      field_confidences: fieldConfidences,
+    }),
+  });
+}
+
+export async function fetchFeedbackStats() {
+  const url = `${API_BASE}/api/feedback/stats`;
+  return request(url);
+}

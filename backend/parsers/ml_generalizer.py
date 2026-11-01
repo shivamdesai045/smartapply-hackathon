@@ -36,6 +36,24 @@ def get_classifier():
             return None
     return None
 
+def reload_model(model_path=None):
+    """Forces reloading of the classifier model into the cache."""
+    global _MODEL_CACHE
+    if model_path is None:
+        model_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "ml", "models", "field_classifier.pkl"
+        )
+    if os.path.exists(model_path):
+        try:
+            _MODEL_CACHE = joblib.load(model_path)
+            return _MODEL_CACHE
+        except Exception:
+            _MODEL_CACHE = None
+            return None
+    _MODEL_CACHE = None
+    return None
+
 def clean_field_line(text, field):
     """Strips field labels and anchors from candidate lines."""
     t = str(text).strip()
@@ -113,3 +131,4 @@ def predict_field_candidates(ocr_data):
             best_candidates[f] = c_list[0]
 
     return best_candidates
+

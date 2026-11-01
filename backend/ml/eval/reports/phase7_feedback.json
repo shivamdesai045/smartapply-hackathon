@@ -1,0 +1,272 @@
+{
+  "timestamp": "2026-11-01T16:38:21.387162",
+  "evaluation_mode": "synthetic only, not real accuracy",
+  "dataset_path": "D:\\sahayak-hackathon\\backend\\ml\\synth\\data",
+  "total_documents": 60,
+  "total_fields_evaluated": 290,
+  "total_fields_correct": 290,
+  "overall_accuracy_pct": 100.0,
+  "by_document_type": {
+    "Aadhaar Card": {
+      "samples": 10,
+      "fields_evaluated": 40,
+      "fields_correct": 40,
+      "overall_accuracy_pct": 100.0,
+      "field_accuracies": {
+        "name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "dob": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "address": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "doc_number": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "father_name": {
+          "correct": 0,
+          "total": 0,
+          "accuracy_pct": "N/A"
+        },
+        "mother_name": {
+          "correct": 0,
+          "total": 0,
+          "accuracy_pct": "N/A"
+        }
+      }
+    },
+    "PAN Card": {
+      "samples": 10,
+      "fields_evaluated": 40,
+      "fields_correct": 40,
+      "overall_accuracy_pct": 100.0,
+      "field_accuracies": {
+        "name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "dob": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "address": {
+          "correct": 0,
+          "total": 0,
+          "accuracy_pct": "N/A"
+        },
+        "doc_number": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "father_name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "mother_name": {
+          "correct": 0,
+          "total": 0,
+          "accuracy_pct": "N/A"
+        }
+      }
+    },
+    "10th Marksheet": {
+      "samples": 10,
+      "fields_evaluated": 50,
+      "fields_correct": 50,
+      "overall_accuracy_pct": 100.0,
+      "field_accuracies": {
+        "name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "dob": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "address": {
+          "correct": 0,
+          "total": 0,
+          "accuracy_pct": "N/A"
+        },
+        "doc_number": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "father_name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "mother_name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        }
+      }
+    },
+    "Passport": {
+      "samples": 10,
+      "fields_evaluated": 60,
+      "fields_correct": 60,
+      "overall_accuracy_pct": 100.0,
+      "field_accuracies": {
+        "name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "dob": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "address": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "doc_number": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "father_name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "mother_name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        }
+      }
+    },
+    "Voter ID": {
+      "samples": 10,
+      "fields_evaluated": 50,
+      "fields_correct": 50,
+      "overall_accuracy_pct": 100.0,
+      "field_accuracies": {
+        "name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "dob": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "address": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "doc_number": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "father_name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "mother_name": {
+          "correct": 0,
+          "total": 0,
+          "accuracy_pct": "N/A"
+        }
+      }
+    },
+    "Driving Licence": {
+      "samples": 10,
+      "fields_evaluated": 50,
+      "fields_correct": 50,
+      "overall_accuracy_pct": 100.0,
+      "field_accuracies": {
+        "name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "dob": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "address": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "doc_number": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "father_name": {
+          "correct": 10,
+          "total": 10,
+          "accuracy_pct": 100.0
+        },
+        "mother_name": {
+          "correct": 0,
+          "total": 0,
+          "accuracy_pct": "N/A"
+        }
+      }
+    }
+  },
+  "overall_by_field": {
+    "name": {
+      "correct": 60,
+      "total": 60,
+      "accuracy_pct": 100.0
+    },
+    "dob": {
+      "correct": 60,
+      "total": 60,
+      "accuracy_pct": 100.0
+    },
+    "address": {
+      "correct": 40,
+      "total": 40,
+      "accuracy_pct": 100.0
+    },
+    "doc_number": {
+      "correct": 60,
+      "total": 60,
+      "accuracy_pct": 100.0
+    },
+    "father_name": {
+      "correct": 50,
+      "total": 50,
+      "accuracy_pct": 100.0
+    },
+    "mother_name": {
+      "correct": 20,
+      "total": 20,
+      "accuracy_pct": 100.0
+    }
+  },
+  "worst_failures_sample": []
+}
