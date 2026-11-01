@@ -19,7 +19,7 @@ from correction_guide import get_guidance
 
 HONORIFICS = {
     "mr", "mrs", "ms", "miss", "master", "dr", "prof", "shri", "shree",
-    "sri", "smt", "kum", "late", "adv"
+    "sri", "smt", "late", "adv"
 }
 RELATIONAL = {"s/o", "d/o", "w/o", "c/o", "so", "do", "wo", "co"}
 
@@ -122,6 +122,8 @@ def normalize_text(value):
 def normalize_name_tokens(name):
     """Normalize a name and return its lowercase tokens, honorifics and relations stripped."""
     cleaned = normalize_text(name)
+    # Honorific Kumar stripped only in explicit certificate phrases ("certified that, Kumar <Name>")
+    cleaned = re.sub(r"\b(?:certified\s+that|this\s+is\s+to\s+certify\s+that),?\s+kumar\b", "", cleaned, flags=re.I)
     parts = cleaned.split()
     tokens = []
     for tok in parts:
@@ -263,13 +265,16 @@ def _parse_date(value):
     if not value:
         return None, None
     text = str(value).strip()
-    if re.match(r"^(19|20)\d{2}$", text):
-        return None, int(text)
     for fmt in _DATE_FORMATS:
         try:
             return datetime.strptime(text, fmt).date(), None
         except ValueError:
             continue
+    # Year-only DOB stays year-only (e.g. "1995", "YOB: 1995")
+    if not re.search(r"\d{1,2}[\/\-\.]\d{1,2}", text):
+        m_year = re.search(r"\b(19\d{2}|20\d{2})\b", text)
+        if m_year:
+            return None, int(m_year.group(1))
     return None, None
 
 
@@ -277,10 +282,18 @@ def _parse_date(value):
 # Field Comparators
 # --------------------------------------------------------------------------- #
 
+def is_initial_match(tok_short, tok_long):
+    """Returns True if tok_short is a 1-character initial matching the start of tok_long."""
+    if len(tok_short) == 1 and len(tok_long) >= 1:
+        return tok_long.startswith(tok_short)
+    return False
+
+
 def compare_names(name_a, name_b):
     """
     Returns (result, verdict, similarity, explanation, severity)
     Result is Match, Possible Mismatch, Mismatch, or Unable to Compare.
+    Handles middle name absence, initials vs full name as soft match (not mismatch).
     """
     if is_checklist_description(name_a) or is_checklist_description(name_b):
         return "Unable to Compare", "unable_to_verify", None, "Extracted value matched a checklist description or document title instead of a person name.", None
@@ -297,6 +310,9 @@ def compare_names(name_a, name_b):
     tokens_a = normalize_name_tokens(name_a)
     tokens_b = normalize_name_tokens(name_b)
 
+    if not tokens_a or not tokens_b:
+        return "Unable to Compare", "unable_to_verify", None, "Name could not be tokenized.", None
+
     set_a = set(tokens_a)
     set_b = set(tokens_b)
 
@@ -304,10 +320,10 @@ def compare_names(name_a, name_b):
     if set_a == set_b and len(tokens_a) >= 2:
         return "Match", "match", 1.0, f"Names match (different name order: '{name_a}' vs '{name_b}').", None
 
-    # Token subset match: shorter name has >= 2 tokens and is a subset of longer name
     short_tokens, long_tokens = (tokens_a, tokens_b) if len(tokens_a) <= len(tokens_b) else (tokens_b, tokens_a)
     short_name, long_name = (name_a, name_b) if len(tokens_a) <= len(tokens_b) else (name_b, name_a)
 
+    # 1. Exact token subset match: middle/father's name omitted on one document
     if set(short_tokens) < set(long_tokens):
         if len(short_tokens) >= 2:
             return "Match", "match", 1.0, f"Names match: one document includes an additional middle/father's name ('{short_name}' vs '{long_name}').", None
@@ -315,6 +331,37 @@ def compare_names(name_a, name_b):
             return "Possible Mismatch", "possible_mismatch", 0.70, (
                 f"Single name token match ('{short_name}' vs '{long_name}'): only one name part matches. Verify if this represents the same person."
             ), "moderate"
+
+    # 2. Token-set fuzzy matching for middle names and initials (e.g. 'Shivam S Desai' vs 'Shivam Satish Desai')
+    matched_long_indices = set()
+    matched_pairs = []
+    for s_tok in short_tokens:
+        best_match_idx = None
+        best_score = 0.0
+        for l_idx, l_tok in enumerate(long_tokens):
+            if l_idx in matched_long_indices:
+                continue
+            if s_tok == l_tok:
+                score = 1.0
+            elif is_initial_match(s_tok, l_tok) or is_initial_match(l_tok, s_tok):
+                score = 0.90
+            else:
+                score = char_similarity(s_tok, l_tok)
+            if score > best_score:
+                best_score = score
+                best_match_idx = l_idx
+
+        if best_match_idx is not None and best_score >= 0.80:
+            matched_long_indices.add(best_match_idx)
+            matched_pairs.append((s_tok, long_tokens[best_match_idx], best_score))
+
+    if len(matched_pairs) == len(short_tokens) and len(short_tokens) >= 2:
+        avg_score = round(sum(s for _, _, s in matched_pairs) / len(matched_pairs), 2)
+        initial_used = any(is_initial_match(s, l) or is_initial_match(l, s) for s, l, _ in matched_pairs)
+        if initial_used:
+            return "Match", "match", avg_score, f"Names match (initials/middle name soft match: '{name_a}' vs '{name_b}').", None
+        else:
+            return "Match", "match", avg_score, f"Names match (middle name variation: '{name_a}' vs '{name_b}').", None
 
     seq_score = char_similarity(norm_a, norm_b)
     tok_score = token_overlap(tokens_a, tokens_b)
@@ -375,19 +422,24 @@ def compare_dob(dob_a, dob_b):
 def compare_address(addr_a, addr_b):
     """
     Returns (result, verdict, similarity, explanation, severity)
-    PIN code conflict produces Mismatch; subset match requires >= 3 tokens or matching PIN.
+    Requires minimum matching tokens plus PIN/locality agreement.
+    One-word addresses never match anything.
     """
     if not addr_a or not addr_b:
         missing = "both documents" if (not addr_a and not addr_b) else ("Document 1" if not addr_a else "Document 2")
         return "Unable to Compare", "unable_to_verify", None, f"Address was not detected in {missing}.", None
 
+    tokens_a, pin_a = normalize_address_tokens(addr_a)
+    tokens_b, pin_b = normalize_address_tokens(addr_b)
+
+    # One-word addresses never match anything
+    if len(tokens_a) <= 1 or len(tokens_b) <= 1:
+        return "Unable to Compare", "unable_to_verify", 0.0, "One-word address has insufficient detail to compare residence.", None
+
     norm_a = normalize_text(addr_a)
     norm_b = normalize_text(addr_b)
     if norm_a == norm_b:
         return "Match", "match", 1.0, "Addresses match identically.", None
-
-    tokens_a, pin_a = normalize_address_tokens(addr_a)
-    tokens_b, pin_b = normalize_address_tokens(addr_b)
 
     pin_conflict = bool(pin_a and pin_b and pin_a != pin_b)
     if pin_conflict:
@@ -405,17 +457,20 @@ def compare_address(addr_a, addr_b):
 
     score = round(max(jaccard, subset_ratio * 0.8), 2)
 
-    # Shorter address is a complete subset: requires >= 3 tokens or matching PIN
-    if (set_a <= set_b or set_b <= set_a):
-        if len(common) >= 3 or (pin_a and pin_a == pin_b):
-            return "Match", "match", 1.0, f"Addresses match ('{addr_a}' and '{addr_b}').", None
+    pin_agreement = bool(pin_a and pin_b and pin_a == pin_b)
+    locality_agreement = len(common) >= 3 or pin_agreement
+    min_tokens_needed = 2 if pin_agreement else 3
 
-    if subset_ratio >= 0.70 and jaccard >= 0.50:
-        return "Match", "match", score, "Addresses match closely.", None
-    elif subset_ratio >= 0.25 or jaccard >= 0.20:
-        return "Possible Mismatch", "possible_mismatch", score, f"Address differences detected: '{addr_a}' vs '{addr_b}'. Verify if these refer to the same residence.", "moderate"
-    else:
-        return "Mismatch", "mismatch", score, f"Different addresses detected: '{addr_a}' vs '{addr_b}'.", "high"
+    if len(common) >= min_tokens_needed and locality_agreement:
+        if (set_a <= set_b or set_b <= set_a) or (subset_ratio >= 0.70 and jaccard >= 0.40):
+            return "Match", "match", score if score > 0 else 1.0, f"Addresses match ('{addr_a}' and '{addr_b}').", None
+        elif subset_ratio >= 0.40 or jaccard >= 0.25:
+            return "Possible Mismatch", "possible_mismatch", score, f"Address differences detected: '{addr_a}' vs '{addr_b}'. Verify if these refer to the same residence.", "moderate"
+
+    if len(common) >= 2 and not pin_conflict:
+        return "Possible Mismatch", "possible_mismatch", score, f"Address details differ but share some location tokens: '{addr_a}' vs '{addr_b}'.", "moderate"
+
+    return "Mismatch", "mismatch", score, f"Different addresses detected: '{addr_a}' vs '{addr_b}'.", "high"
 
 
 def infer_doc_type(val, doc_name=""):
@@ -488,6 +543,30 @@ def compare_doc_numbers(num_a_raw, num_b_raw, doc_a="", doc_b=""):
 def build_correction_options(doc_a, doc_b, field):
     return [get_guidance(doc_a, field), get_guidance(doc_b, field)]
 
+
+PARENT_GUARDIAN_KEYWORDS = [
+    "father", "mother", "parent", "guardian", "spouse", "deceased",
+    "husband", "wife", "child", "minor"
+]
+
+def get_document_holder(doc_key, doc_data=None):
+    """
+    Returns document holder role: 'applicant' (default) or parent/guardian/other.
+    """
+    if not doc_data:
+        doc_data = {}
+    holder = doc_data.get("holder") or doc_data.get("role") or doc_data.get("subject")
+    if holder:
+        h = str(holder).strip().lower()
+        if h in ("applicant", "self", "user"):
+            return "applicant"
+        return h
+
+    k = doc_key.lower()
+    for kw in PARENT_GUARDIAN_KEYWORDS:
+        if kw in k:
+            return f"holder_{kw}"
+    return "applicant"
 
 def check_mismatches(documents):
     """
@@ -565,10 +644,12 @@ def check_mismatches(documents):
         f_a = readable_docs[doc_a]
         f_b = readable_docs[doc_b]
 
-        # Subject-aware check: skip comparing documents intended for different persons
-        subj_a = f_a.get("subject") or (f_a.get("doc_meta") or {}).get("subject") or "applicant"
-        subj_b = f_b.get("subject") or (f_b.get("doc_meta") or {}).get("subject") or "applicant"
-        if subj_a != subj_b:
+        # Holder/Subject role check: documents of another person (parent/guardian) are excluded from applicant comparisons
+        holder_a = f_a.get("holder") or get_document_holder(doc_a, f_a)
+        holder_b = f_b.get("holder") or get_document_holder(doc_b, f_b)
+        f_a["holder"] = holder_a
+        f_b["holder"] = holder_b
+        if holder_a != holder_b:
             continue
 
         exp_fields_a = get_expected_fields(doc_a)
@@ -750,19 +831,42 @@ def check_mismatches(documents):
                 unable_count += 1
 
     # Determine top-level verificationStatus
+    # Required fields for applicant identity cross-check: Name and DOB must both be verified
+    has_name_match = any(c["field"] == "name" and c["result"] == "Match" for c in comparisons)
+    has_dob_match = any(c["field"] == "dob" and c["result"] == "Match" for c in comparisons)
+
+    # Any required field that was compared and could not be verified:
+    # 1) Name unable to compare
+    # 2) DOB unable to compare
+    # 3) Address unable to compare when BOTH documents provided an address
+    has_unverified_required_field = any(
+        (c["field"] in ("name", "dob") and c["result"] == "Unable to Compare") or
+        (c["field"] == "address" and c["result"] == "Unable to Compare" and c.get("valA") != "Not detected" and c.get("valB") != "Not detected")
+        for c in comparisons
+    )
+
+    all_required_verified = (
+        len(issues) == 0 and
+        has_name_match and
+        has_dob_match and
+        not has_unverified_required_field
+    )
+
     if len(issues) > 0:
         verification_status = "issues_found"
-    elif matches_count >= 1 and len(readable_keys) >= 2:
+    elif len(readable_keys) >= 2 and all_required_verified:
         verification_status = "verified"
-    else:
+    elif len(readable_keys) >= 2 and matches_count >= 1 and len(issues) == 0:
         verification_status = "partially_verified"
+    else:
+        verification_status = "not_verified"
 
     return {
         "documentsChecked": doc_names,
         "readableDocuments": readable_keys,
         "unreadableDocuments": unreadable_docs,
         "enoughData": len(readable_keys) >= 2,
-        "clean": len(issues) == 0,
+        "clean": len(issues) == 0 and verification_status == "verified",
         "issuesFound": len(issues),
         "issues": issues,
         "comparisons": comparisons,

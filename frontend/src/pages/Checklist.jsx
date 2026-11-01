@@ -768,9 +768,10 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
     totalComparisons: 0,
   };
 
-  const isVerified = data?.verificationStatus === "verified" || (data && summary.mismatches === 0 && summary.possibleMismatches === 0);
+  const isVerified = data?.verificationStatus === "verified";
   const isPartial = data?.verificationStatus === "partially_verified";
-  const _hasIssues = !isVerified && !isPartial;
+  const isNotVerified = data?.verificationStatus === "not_verified" || (data && !isVerified && !isPartial && (summary.mismatches === 0 && summary.possibleMismatches === 0));
+  const _hasIssues = !isVerified && !isPartial && !isNotVerified;
 
   const getResultBadge = (result) => {
     switch (result) {
@@ -850,6 +851,8 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                 ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100"
                 : isPartial
                 ? "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100"
+                : isNotVerified
+                ? "bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100"
                 : "bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 text-rose-900 dark:text-rose-100"
             }`}>
               <div className="flex items-start gap-3">
@@ -858,9 +861,11 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                     ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100"
                     : isPartial
                     ? "bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100"
+                    : isNotVerified
+                    ? "bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100"
                     : "bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100"
                 }`}>
-                  {isVerified ? "✓" : isPartial ? "!" : "✕"}
+                  {isVerified ? "✓" : isPartial ? "!" : isNotVerified ? "ℹ" : "✕"}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -869,6 +874,8 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                         ? "All Documents Verified and Consistent"
                         : isPartial
                         ? "Partially Verified — Review Details"
+                        : isNotVerified
+                        ? "Not Verified — Incomplete or Unverified Fields"
                         : "Discrepancies Found — Action Required"}
                     </h2>
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -876,9 +883,11 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                         ? "bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100"
                         : isPartial
                         ? "bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100"
+                        : isNotVerified
+                        ? "bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100"
                         : "bg-rose-200 dark:bg-rose-800 text-rose-900 dark:text-rose-100"
                     }`}>
-                      {isVerified ? "Verified" : isPartial ? "Partially Verified" : "Issues Found"}
+                      {isVerified ? "All Clear / Verified" : isPartial ? "Partially Verified" : isNotVerified ? "Not Verified" : "Issues Found"}
                     </span>
                   </div>
                   <p className="text-xs mt-1 leading-relaxed opacity-90">
@@ -886,6 +895,8 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                       ? "All extracted details across your uploaded documents match consistently. Your documents are ready for your application."
                       : isPartial
                       ? "Most fields match, but some could not be cross-verified or contain minor differences (e.g. initial or middle name variations)."
+                      : isNotVerified
+                      ? "Some required fields could not be verified across your documents. Please review and ensure all details are present."
                       : "Differences in Name, Date of Birth, or other critical fields were detected between your documents. Review guidance below before submitting."}
                   </p>
                 </div>
@@ -1574,7 +1585,7 @@ function Checklist() {
                 : "Check documents for mismatches"
             }
           >
-            Check Mismatches ({comparableCount}/2 ready) →
+            Check Mismatches ({Math.min(comparableCount, 2)}/2 ready) →
           </button>
         </div>
       </div>

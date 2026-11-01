@@ -89,6 +89,91 @@ class TestPhase3RuleEngine(unittest.TestCase):
         self.assertEqual(len(res["comparisons"]), 0)
 
 
+    def test_09_kumar_preservation_and_explicit_honorific(self):
+        # Kumar is preserved as an active token in general names
+        toks = rule_engine.normalize_name_tokens("Rajesh Kumar")
+        self.assertIn("kumar", toks)
+        self.assertIn("rajesh", toks)
+
+        toks_lead = rule_engine.normalize_name_tokens("Kumar Sanu")
+        self.assertIn("kumar", toks_lead)
+
+        # Kumar is stripped ONLY in explicit certificate phrases
+        toks_cert = rule_engine.normalize_name_tokens("certified that, Kumar Rajesh")
+        self.assertNotIn("kumar", toks_cert)
+        self.assertIn("rajesh", toks_cert)
+
+    def test_10_middle_name_initial_soft_match(self):
+        # Middle initial vs full name is a soft match, NOT a mismatch
+        res1, verd1, _, exp1, _ = rule_engine.compare_names("Shivam S Desai", "Shivam Satish Desai")
+        self.assertEqual(res1, "Match")
+        self.assertEqual(verd1, "match")
+        self.assertIn("soft match", exp1)
+
+        # Middle initial with period
+        res2, verd2, _, _, _ = rule_engine.compare_names("Shivam S. Desai", "Shivam Satish Desai")
+        self.assertEqual(res2, "Match")
+        self.assertEqual(verd2, "match")
+
+        # Initial absent on one document
+        res3, verd3, _, _, _ = rule_engine.compare_names("Shivam S. Desai", "Shivam Desai")
+        self.assertEqual(res3, "Match")
+        self.assertEqual(verd3, "match")
+
+    def test_11_address_one_word_never_matches(self):
+        # One-word addresses never match anything (even identical words)
+        res1, verd1, _, exp1, _ = rule_engine.compare_address("Pune", "Pune")
+        self.assertEqual(res1, "Unable to Compare")
+        self.assertEqual(verd1, "unable_to_verify")
+        self.assertIn("One-word address has insufficient detail", exp1)
+
+        res2, verd2, _, exp2, _ = rule_engine.compare_address("Pune", "Flat 402, Shiv Plaza, FC Road, Pune 411005")
+        self.assertEqual(res2, "Unable to Compare")
+        self.assertEqual(verd2, "unable_to_verify")
+
+    def test_12_address_matching_tokens_and_pin_agreement(self):
+        # Minimum matching tokens plus PIN/locality agreement produces match
+        addr_a = "Flat 101, Shanti Nagar, FC Road, Pune 411005"
+        addr_b = "Shanti Nagar, FC Road, Pune 411005"
+        res, verd, _, _, _ = rule_engine.compare_address(addr_a, addr_b)
+        self.assertEqual(res, "Match")
+        self.assertEqual(verd, "match")
+
+        # Insufficient matching tokens (< 2) produces mismatch
+        addr_c = "12 North Block, Sector 4, Chandigarh 160001"
+        res_diff, verd_diff, _, _, _ = rule_engine.compare_address(addr_a, addr_c)
+        self.assertEqual(res_diff, "Mismatch")
+        self.assertEqual(verd_diff, "mismatch")
+
+    def test_13_document_holder_role_exclusion(self):
+        # Documents of another person (parent/guardian) get a holder role and are excluded from applicant comparisons
+        docs = {
+            "Applicant Aadhaar": {"name": "Shivam Desai", "dob": "2003-08-15", "holder": "applicant"},
+            "Father's Passport": {"name": "Satish Desai", "dob": "1972-04-10"},
+        }
+        res = rule_engine.check_mismatches(docs)
+        # Father's Passport inferred as holder role and excluded from applicant comparisons
+        self.assertEqual(len(res["comparisons"]), 0)
+
+    def test_14_verification_status_all_clear_only_when_every_required_field_verified(self):
+        # Case 1: All required fields (Name AND DOB) verified -> "verified" (All clear)
+        docs_complete = {
+            "PAN Card": {"name": "Shivam Desai", "dob": "2003-08-15"},
+            "Aadhaar Card": {"name": "Shivam Satish Desai", "dob": "2003-08-15"},
+        }
+        res_comp = rule_engine.check_mismatches(docs_complete)
+        self.assertEqual(res_comp["verificationStatus"], "verified")
+
+        # Case 2: Name verified but DOB unreadable/missing -> "not_verified" / "partially_verified", NEVER "verified"
+        docs_missing_dob = {
+            "PAN Card": {"name": "Shivam Desai"},
+            "Aadhaar Card": {"name": "Shivam Satish Desai"},
+        }
+        res_missing = rule_engine.check_mismatches(docs_missing_dob)
+        self.assertNotEqual(res_missing["verificationStatus"], "verified")
+        self.assertIn(res_missing["verificationStatus"], ("partially_verified", "not_verified"))
+
+
 if __name__ == "__main__":
     unittest.main()
 
