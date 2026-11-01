@@ -1,0 +1,10 @@
+﻿node_modules/
+venv/
+.venv/
+env/
+__pycache__/
+dist/
+.env
+uploads/
+*.db
+.vscode/
