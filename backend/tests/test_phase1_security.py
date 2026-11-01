@@ -72,6 +72,14 @@ class TestPhase1Security(unittest.TestCase):
                 headers={"X-Dev-Mode": "true"}
             )
             self.assertEqual(res.status_code, 403)
+
+            os.environ["ADMIN_TOKEN"] = "test-secret-token"
+            res_bad = self.client.get(
+                f"/api/checklist/Passport/diagnostics?session_id={sid}&variant=adult",
+                headers={"X-Admin-Token": "wrong-token"}
+            )
+            self.assertEqual(res_bad.status_code, 403)
+            os.environ.pop("ADMIN_TOKEN", None)
         finally:
             if old_val:
                 os.environ["DIAGNOSTICS_ENABLED"] = old_val

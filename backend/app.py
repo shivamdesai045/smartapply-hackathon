@@ -3,6 +3,7 @@ import re
 import uuid
 import secrets
 import urllib.parse
+import hmac
 from functools import wraps
 
 from flask import Flask, jsonify, request, send_file, session
@@ -870,8 +871,16 @@ def get_checklist_diagnostics(service_name):
     Client-controlled bypasses like X-Dev-Mode or ?dev=true are strictly ignored.
     """
     is_prod = os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
-    diag_enabled = os.getenv("DIAGNOSTICS_ENABLED", "false").lower() in ("true", "1")
-    if is_prod or not diag_enabled:
+    admin_token_env = os.getenv("ADMIN_TOKEN")
+    req_token = request.headers.get("X-Admin-Token") or request.args.get("admin_token")
+    has_valid_token = bool(admin_token_env and req_token and hmac.compare_digest(req_token.strip(), admin_token_env.strip()))
+    user_id = session.get("user_id")
+    is_admin = False
+    if user_id:
+        user = db.get_user_by_id(user_id) if hasattr(db, "get_user_by_id") else None
+        if user and (user.get("is_admin") or user.get("role") == "admin"):
+            is_admin = True
+    if is_prod or not (has_valid_token or is_admin):
         return jsonify({"error": "Diagnostic view is restricted to development mode and disabled in production."}), 403
 
     session_id = get_request_session_id()
