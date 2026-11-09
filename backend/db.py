@@ -5,6 +5,8 @@ import hashlib
 import json
 import shutil
 import sqlite3
+from field_storage import json_object, sanitize, merge_fields, flags, LEGACY
+from migrate_doc_fields import migrate as migrate_doc_fields
 from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
 
@@ -69,6 +71,7 @@ class SQLiteCursorAdapter:
 class SQLiteConnectionAdapter:
     def __init__(self, conn):
         self._conn = conn
+        self._conn.execute("PRAGMA secure_delete=ON")
         self.autocommit = False
 
     def cursor(self, cursor_factory=None):
@@ -271,6 +274,9 @@ def init_db():
             cur.execute("CREATE INDEX IF NOT EXISTS idx_checklist_progress_user_id ON checklist_progress(user_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_checklist_progress_session_id ON checklist_progress(session_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_mismatch_decisions_session_id ON mismatch_decisions(session_id)")
+            migrate_doc_fields(conn, sqlite=True)
+            from identity_store import initialize
+            initialize(conn, sqlite=True)
             conn.commit()
             return
 
@@ -360,13 +366,18 @@ def init_db():
                             (masked, r[0], r[1], r[2], r[3])
                         )
 
+    with get_db_connection() as conn:
+        migrate_doc_fields(conn, sqlite=USE_SQLITE)
+        from identity_store import initialize
+        initialize(conn, sqlite=USE_SQLITE)
+
 def get_progress(session_id, service, variant, user_id=None):
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             if user_id:
                 cur.execute(
                     "SELECT id, requirement, chosen_option, uploaded, file_path, uploaded_at, "
-                    "doc_name, doc_dob, doc_address, doc_number, raw_text, manually_edited, doc_meta "
+                    "doc_name, doc_dob, doc_address, doc_number, raw_text, manually_edited, doc_meta, doc_fields, ocr_version, needs_review, user_verified "
                     "FROM checklist_progress "
                     "WHERE user_id = %s AND service = %s AND variant = %s",
                     (user_id, service, variant),
@@ -374,7 +385,7 @@ def get_progress(session_id, service, variant, user_id=None):
             else:
                 cur.execute(
                     "SELECT id, requirement, chosen_option, uploaded, file_path, uploaded_at, "
-                    "doc_name, doc_dob, doc_address, doc_number, raw_text, manually_edited, doc_meta "
+                    "doc_name, doc_dob, doc_address, doc_number, raw_text, manually_edited, doc_meta, doc_fields, ocr_version, needs_review, user_verified "
                     "FROM checklist_progress "
                     "WHERE session_id = %s AND service = %s AND variant = %s",
                     (session_id, service, variant),
@@ -406,12 +417,17 @@ def get_progress(session_id, service, variant, user_id=None):
             "fieldConfidences": meta.get("fieldConfidence", {}),
             "needsReview": meta.get("needsReview", {}),
             "docMeta": meta,
+            "docFields": json_object(row.get("doc_fields")),
+            "doc_fields": json_object(row.get("doc_fields")),
+            "ocr_version": row.get("ocr_version"),
+            "needs_review": bool(row.get("needs_review", True)),
+            "user_verified": bool(row.get("user_verified", False)),
         }
     return res
 
 def mark_uploaded(session_id, service, variant, requirement, chosen_option, file_path,
                    doc_name=None, doc_dob=None, doc_address=None, doc_number=None, raw_text=None,
-                   user_id=None, doc_meta=None):
+                   user_id=None, doc_meta=None, doc_fields=None, ocr_version=None, sensitive_token=None):
     raw_doc_num_str = None
     if isinstance(doc_number, dict):
         raw_doc_num_str = f"{doc_number.get('type')}: {doc_number.get('number')}"
@@ -419,11 +435,15 @@ def mark_uploaded(session_id, service, variant, requirement, chosen_option, file
         raw_doc_num_str = str(doc_number)
 
     doc_number_hash = hash_doc_number(raw_doc_num_str)
-    masked_doc_num_str = mask_doc_number(raw_doc_num_str)
+    from identity_store import enabled,identify,seal
+    if enabled() and not sensitive_token:
+        ids=identify(doc_number,chosen_option)
+        if ids:sensitive_token=seal(ids,'ocr-internal')
+    masked_doc_num_str = sanitize(mask_doc_number(raw_doc_num_str))
 
     # Data minimisation: raw OCR text is never stored in DB
     stored_raw_text = None
-    doc_meta_str = json.dumps(doc_meta) if isinstance(doc_meta, dict) else (doc_meta or None)
+    doc_meta_str = json.dumps(sanitize(doc_meta)) if isinstance(doc_meta, dict) else (doc_meta or None)
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -454,6 +474,8 @@ def mark_uploaded(session_id, service, variant, requirement, chosen_option, file
                  datetime.now().isoformat(), doc_name, doc_dob, doc_address, masked_doc_num_str,
                  stored_raw_text, user_id, doc_meta_str, doc_number_hash),
             )
+        _persist_fields(conn, session_id, service, variant, requirement, doc_fields or {},
+                        ocr_version=ocr_version, user_id=user_id, replacement=True, sensitive_token=sensitive_token)
         conn.commit()
 
 NON_IDENTITY_REQUIREMENTS = {
@@ -481,7 +503,7 @@ def get_documents_with_data(session_id, service, variant, user_id=None):
             if user_id:
                 cur.execute(
                     "SELECT id, requirement, chosen_option, doc_name, doc_dob, doc_address, doc_number, "
-                    "file_path, raw_text, doc_meta, doc_number_hash, manually_edited "
+                    "file_path, raw_text, doc_meta, doc_number_hash, manually_edited, doc_fields, ocr_version, needs_review, user_verified "
                     "FROM checklist_progress "
                     "WHERE user_id = %s AND service = %s AND variant = %s AND uploaded = 1",
                     (user_id, service, variant),
@@ -489,7 +511,7 @@ def get_documents_with_data(session_id, service, variant, user_id=None):
             else:
                 cur.execute(
                     "SELECT id, requirement, chosen_option, doc_name, doc_dob, doc_address, doc_number, "
-                    "file_path, raw_text, doc_meta, doc_number_hash, manually_edited "
+                    "file_path, raw_text, doc_meta, doc_number_hash, manually_edited, doc_fields, ocr_version, needs_review, user_verified "
                     "FROM checklist_progress "
                     "WHERE session_id = %s AND service = %s AND variant = %s AND uploaded = 1",
                     (session_id, service, variant),
@@ -528,6 +550,8 @@ def get_documents_with_data(session_id, service, variant, user_id=None):
             if doc_number_hash and ent.get("doc_number_hash") and doc_number_hash == ent.get("doc_number_hash"):
                 matched_key = k
                 break
+            if doc_number_hash and ent.get("doc_number_hash"):
+                continue  # Distinct full IDs must not merge through masked suffixes or document type.
             if doc_number and ent.get("doc_number") and doc_number == ent.get("doc_number"):
                 matched_key = k
                 break
@@ -552,6 +576,7 @@ def get_documents_with_data(session_id, service, variant, user_id=None):
             ent["raw_text"] = ent.get("raw_text") or row_raw_text
             ent["text_length"] = max(ent.get("text_length", 0), len(row_raw_text))
             ent["has_data"] = any([ent["name"], ent["dob"], ent["address"], ent["doc_number"]])
+            ent["doc_fields"] = merge_fields(ent.get("doc_fields"), json_object(row.get("doc_fields")))
             if not ent.get("doc_meta") and doc_meta:
                 ent["doc_meta"] = doc_meta
         else:
@@ -572,62 +597,61 @@ def get_documents_with_data(session_id, service, variant, user_id=None):
                 "has_data": any([doc_name, doc_dob, doc_address, doc_number]),
                 "doc_meta": doc_meta or {},
                 "manually_edited": bool(row.get("manually_edited")),
+                "doc_fields": json_object(row.get("doc_fields")),
+                "ocr_version": row.get("ocr_version"),
+                "needs_review": bool(row.get("needs_review", True)),
+                "user_verified": bool(row.get("user_verified", False)),
             }
     return documents
 
+def _persist_fields(conn, session_id, service, variant, requirement, incoming,
+                    verified=False, ocr_version=None, user_id=None, doc_meta=None, replacement=False, sensitive_token=None):
+    owner_col, owner = ("user_id", user_id) if user_id else ("session_id", session_id)
+    where = f"{owner_col} = %s AND service = %s AND variant = %s AND requirement = %s"
+    args = (owner, service, variant, requirement)
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT id,user_id,session_id,service,variant,requirement,chosen_option,sensitive_ids,doc_fields,doc_meta,doc_name,doc_dob,doc_address,doc_number FROM checklist_progress WHERE " + where, args)
+        rows = cur.fetchall()
+        for row in rows:
+            # A replacement file has new evidence. Manual corrections belong to
+            # the previous document; only rescans of the same file retain them.
+            from identity_store import save_row
+            entry=incoming.get('doc_number')
+            empty=entry.get('value') if isinstance(entry,dict) else entry
+            previous_number=json_object(row.get('doc_fields')).get('doc_number',{})
+            if replacement or verified or not previous_number.get('user_verified'):
+                save_row(conn,row,entry,token=sensitive_token,replacement=replacement,
+                         explicit_clear=verified and 'doc_number' in incoming and (not empty or empty!=previous_number.get('value')))
+            fields = merge_fields({} if replacement else row.get("doc_fields"), incoming, verified=verified)
+            needs_review, user_verified = flags(fields)
+            meta = json_object(doc_meta) or json_object(row.get("doc_meta"))
+            meta = sanitize(meta)
+            meta["fieldConfidence"] = {k: e["confidence"] for k, e in fields.items()}
+            meta["needsReview"] = {k: e["needs_review"] for k, e in fields.items()}
+            values = [fields[k]["value"] if k in fields else sanitize(row[col]) for k, col in LEGACY.items()]
+            cur.execute("""UPDATE checklist_progress SET doc_fields = %s,
+                ocr_version = COALESCE(%s, ocr_version), needs_review = %s, user_verified = %s,
+                doc_name = %s, doc_dob = %s, doc_address = %s, doc_number = %s,
+                doc_meta = %s, manually_edited = %s, raw_text = NULL
+                WHERE session_id = %s AND service = %s AND variant = %s AND requirement = %s""",
+                (json.dumps(fields), ocr_version, needs_review, user_verified, *values,
+                 json.dumps(meta), any(e.get("user_verified") for e in fields.values()),
+                 row["session_id"], service, variant, requirement))
+
+
 def update_fields(session_id, service, variant, requirement, doc_name, doc_dob, doc_address,
-                  doc_number=None, raw_text=None, manually_edited=True, user_id=None, doc_meta=None):
-    """Updates the typed/OCR'd metadata for an already-uploaded item."""
-    raw_doc_num_str = None
-    if isinstance(doc_number, dict):
-        raw_doc_num_str = f"{doc_number.get('type')}: {doc_number.get('number')}"
-    elif doc_number:
-        raw_doc_num_str = str(doc_number)
-
-    doc_number_hash = hash_doc_number(raw_doc_num_str) if raw_doc_num_str else None
-    masked_doc_num_str = mask_doc_number(raw_doc_num_str) if raw_doc_num_str else None
-
-    # Data minimisation: raw OCR text is never stored in DB
-    stored_raw_text = None
-    doc_meta_str = json.dumps(doc_meta) if isinstance(doc_meta, dict) else (doc_meta or None)
-    if doc_meta is None and manually_edited:
-        doc_meta_str = json.dumps({
-            "fieldConfidence": {"name": 1.0, "dob": 1.0, "address": 1.0, "doc_number": 1.0},
-            "needsReview": {"name": False, "dob": False, "address": False, "doc_number": False}
-        })
-
+                  doc_number=None, raw_text=None, manually_edited=True, user_id=None, doc_meta=None,
+                  doc_fields=None, ocr_version=None, sensitive_token=None):
+    """Partial rich corrections preserve other values; rescans never overwrite verified fields."""
+    incoming = dict(doc_fields or {})
+    for key, value in zip(LEGACY, (doc_name, doc_dob, doc_address, doc_number)):
+        if key not in incoming and value is not None:
+            meta = json_object(doc_meta)
+            incoming[key] = {"value": value, "confidence": meta.get("fieldConfidence", {}).get(key, 0),
+                             "needs_review": meta.get("needsReview", {}).get(key, True)}
     with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            if user_id:
-                cur.execute(
-                    """
-                    UPDATE checklist_progress
-                    SET doc_name = %s, doc_dob = %s, doc_address = %s,
-                        doc_number = COALESCE(%s, doc_number),
-                        doc_number_hash = COALESCE(%s, doc_number_hash),
-                        raw_text = COALESCE(%s, raw_text),
-                        manually_edited = %s,
-                        doc_meta = COALESCE(%s, doc_meta)
-                    WHERE user_id = %s AND service = %s AND variant = %s AND requirement = %s
-                    """,
-                    (doc_name, doc_dob, doc_address, masked_doc_num_str, doc_number_hash,
-                     stored_raw_text, manually_edited, doc_meta_str, user_id, service, variant, requirement),
-                )
-            else:
-                cur.execute(
-                    """
-                    UPDATE checklist_progress
-                    SET doc_name = %s, doc_dob = %s, doc_address = %s,
-                        doc_number = COALESCE(%s, doc_number),
-                        doc_number_hash = COALESCE(%s, doc_number_hash),
-                        raw_text = COALESCE(%s, raw_text),
-                        manually_edited = %s,
-                        doc_meta = COALESCE(%s, doc_meta)
-                    WHERE session_id = %s AND service = %s AND variant = %s AND requirement = %s
-                    """,
-                    (doc_name, doc_dob, doc_address, masked_doc_num_str, doc_number_hash,
-                     stored_raw_text, manually_edited, doc_meta_str, session_id, service, variant, requirement),
-                )
+        _persist_fields(conn, session_id, service, variant, requirement, incoming,
+                        verified=manually_edited, ocr_version=ocr_version, user_id=user_id, doc_meta=doc_meta, sensitive_token=sensitive_token)
         conn.commit()
 
 def get_file_path(session_id, service, variant, requirement, user_id=None):
@@ -723,6 +747,8 @@ def link_session_to_user(session_id, user_id):
     if not session_id or not user_id:
         return
     with get_db_connection() as conn:
+        from identity_store import rebind_session
+        rebind_session(conn,session_id,user_id)
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE checklist_progress SET user_id = %s WHERE session_id = %s AND (user_id IS NULL OR user_id = %s)",
@@ -755,6 +781,9 @@ def skip_requirement(session_id, service, variant, requirement, skipped=True, us
                         doc_dob = NULL,
                         doc_address = NULL,
                         doc_number = NULL,
+                        sensitive_ids = NULL,
+                        doc_number_hash = NULL,
+                        doc_fields = '{}',
                         doc_meta = EXCLUDED.doc_meta
                     """,
                     (session_id, service, variant, requirement, "Not Applicable", now_str, meta),
@@ -876,7 +905,7 @@ def get_user_documents(user_id):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 "SELECT id, service, variant, requirement, chosen_option, file_path, "
-                "uploaded_at, doc_name, doc_dob, doc_address, doc_number, manually_edited "
+                "uploaded_at, doc_name, doc_dob, doc_address, doc_number, manually_edited, doc_fields, ocr_version, needs_review, user_verified "
                 "FROM checklist_progress "
                 "WHERE user_id = %s AND uploaded = 1 "
                 "ORDER BY uploaded_at DESC",

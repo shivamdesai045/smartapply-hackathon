@@ -1,3 +1,4 @@
+import ApplicationReview from '../components/ApplicationReview';
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { fetchVerificationReport } from "../lib/api";
@@ -11,6 +12,7 @@ function VerificationReport() {
   const variant = searchParams.get("variant") || "adult";
   const serviceName = decodeURIComponent(slug).replace(/-/g, " ");
 
+  const [reviewOpen,setReviewOpen]=useState(false);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -120,6 +122,8 @@ function VerificationReport() {
     servicePortal,
   } = report;
 
+  if(reviewOpen) return <ApplicationReview report={report} serviceName={serviceName} onBack={()=>setReviewOpen(false)} />;
+
   const scoreColor =
     readinessScore >= 90
       ? "text-green-600 bg-green-50 border-green-300 dark:bg-green-950/40 dark:border-green-800"
@@ -141,11 +145,11 @@ function VerificationReport() {
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={handleDirectSync}
+              onClick={()=>setReviewOpen(true)}
               disabled={syncing}
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold shadow-md transition flex items-center gap-2"
             >
-              <span>⚡</span> {syncing ? "Syncing..." : "1-Click Sync to Extension"}
+              <span>⚡</span> {syncing ? "Syncing..." : "Review details & apply online"}
             </button>
             <button
               onClick={() => setExportModalOpen(true)}
@@ -254,11 +258,11 @@ function VerificationReport() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={handleDirectSync}
+                    onClick={()=>setReviewOpen(true)}
                     disabled={syncing}
                     className="whitespace-nowrap px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-sm transition"
                   >
-                    {syncing ? "Syncing..." : "⚡ 1-Click Sync"}
+                    {syncing ? "Syncing..." : "Review & apply"}
                   </button>
                   <button
                     onClick={() => setExportModalOpen(true)}

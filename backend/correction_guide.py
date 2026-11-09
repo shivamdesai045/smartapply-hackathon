@@ -450,6 +450,23 @@ def get_guidance(doc_key, field, doc_meta=None):
     Dynamically routes 10th marksheets by educational board and domicile by state.
     """
     canonical = normalize_doc_key(doc_key)
+    if field in {"father_name", "mother_name", "guardian_name", "spouse_name", "gender",
+                 "mobile_number", "pincode", "place_of_birth", "expiry_date", "issue_date"}:
+        # Reuse the known issuer/contact, but do not invent field-specific fees,
+        # deadlines, eligibility rules, or claim that every field is editable.
+        base_field = "address" if field == "pincode" else "name"
+        base = get_guidance(doc_key, base_field, doc_meta)
+        label = field.replace("_", " ")
+        steps = [
+            f"Confirm the printed {label} on the original document; correct the OCR value first if it was read incorrectly.",
+            "Compare supporting records and confirm which record is correct. Keep evidence of any lawful name or relationship change.",
+            f"Ask the issuing authority whether {label} requires correction, renewal, or a new document, and which evidence is accepted for this service.",
+        ]
+        if str(doc_key).lower().startswith("registered profile"):
+            steps = ["Confirm the registered name or mobile number belongs to this applicant.",
+                     "Correct the account profile or contact app support if the registration details are wrong."]
+        return {**base, "field": field, "notes": " ".join(steps), "steps": steps,
+                "fee": None, "turnaround": None, "form": None, "needs_verification": True}
     meta = doc_meta or {}
     if isinstance(meta, str):
         import json

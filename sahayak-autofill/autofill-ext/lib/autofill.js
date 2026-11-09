@@ -5,8 +5,9 @@
 // It never clicks Submit.
 function sahayakAutofill(p, opts) {
   opts = opts || {};
+  if(opts.allowedOrigin && location.origin!==opts.allowedOrigin) return {filled:[],skipped:[],noOption:[],noValue:[]};
   p = Object.assign({}, p || {});
-  if (p.address && typeof p.address === 'string') {
+  if (opts.deriveAddress!==false && p.address && typeof p.address === 'string') {
     if (!p.pin) {
       const pinM = p.address.match(/\b([1-9]\d{5})\b/);
       if (pinM) p.pin = pinM[1];
@@ -43,6 +44,27 @@ function sahayakAutofill(p, opts) {
   const NOT_PERSON = ['father', 'mother', 'spouse', 'husband', 'wife', 'guardian', 'parent', 'user', 'username', 'login', 'school', 'college', 'institution', 'institute', 'university', 'company', 'bank', 'branch', 'board', 'nominee', 'account', 'file', 'document', 'district', 'state', 'city', 'village', 'post', 'office', 'relation', 'witness', 'mobile', 'email', 'phone'];
   const OCC = ['occupation', 'mobile', 'phone', 'income', 'education', 'aadhaar', 'aadhar', 'email', 'age', 'profession', 'qualification', 'pan'];
   const RULES = [
+    {"key": "passportNumber", "label": "Passport number", "terms": ["passport number", "passport no"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "voterId", "label": "Voter ID", "terms": ["voter id", "epic number", "epic no"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "learnerLicenceNumber", "label": "Learner licence number", "terms": ["learner licence number", "learning licence number", "ll number", "ll no"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "drivingLicenceNumber", "label": "Driving licence number", "terms": ["driving licence number", "driving license number", "dl number", "dl no"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "birthCertificateNumber", "label": "Birth certificate number", "terms": ["birth certificate number", "birth registration number"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "guardianName", "label": "Guardian name", "terms": ["guardian name", "name of guardian"], "exclude": ["mobile", "phone", "email", "occupation"]},
+    {"key": "spouseName", "label": "Spouse name", "terms": ["spouse name", "husband name", "wife name"], "exclude": ["mobile", "phone", "email", "occupation"]},
+    {"key": "placeOfBirth", "label": "Place of birth", "terms": ["place of birth", "birth place"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "nationality", "label": "Nationality", "terms": ["nationality"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "tenthRollNumber", "label": "tenth RollNumber", "terms": ["10th roll number", "10th roll no", "10th seat number", "10th seat no", "tenth roll number", "tenth roll no", "tenth seat number", "tenth seat no", "ssc roll number", "ssc roll no", "ssc seat number", "ssc seat no", "class 10 roll number", "class 10 roll no", "class 10 seat number", "class 10 seat no", "roll number 10th", "roll no 10th", "seat number 10th", "seat no 10th", "roll number tenth", "roll no tenth", "seat number tenth", "seat no tenth", "roll number ssc", "roll no ssc", "seat number ssc", "seat no ssc", "roll number class 10", "roll no class 10", "seat number class 10", "seat no class 10"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "tenthBoard", "label": "tenth Board", "terms": ["10th board", "10th board name", "tenth board", "tenth board name", "ssc board", "ssc board name", "class 10 board", "class 10 board name", "board 10th", "board name 10th", "board tenth", "board name tenth", "board ssc", "board name ssc", "board class 10", "board name class 10"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "tenthSchool", "label": "tenth School", "terms": ["10th school", "10th school name", "tenth school", "tenth school name", "ssc school", "ssc school name", "class 10 school", "class 10 school name", "school 10th", "school name 10th", "school tenth", "school name tenth", "school ssc", "school name ssc", "school class 10", "school name class 10"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "tenthExamYear", "label": "tenth ExamYear", "terms": ["10th passing year", "10th year of passing", "10th exam year", "tenth passing year", "tenth year of passing", "tenth exam year", "ssc passing year", "ssc year of passing", "ssc exam year", "class 10 passing year", "class 10 year of passing", "class 10 exam year", "passing year 10th", "year of passing 10th", "exam year 10th", "passing year tenth", "year of passing tenth", "exam year tenth", "passing year ssc", "year of passing ssc", "exam year ssc", "passing year class 10", "year of passing class 10", "exam year class 10"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "tenthPercentage", "label": "tenth Percentage", "terms": ["10th percentage", "tenth percentage", "ssc percentage", "class 10 percentage", "percentage 10th", "percentage tenth", "percentage ssc", "percentage class 10"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "tenthTotalMarks", "label": "tenth TotalMarks", "terms": ["10th total marks", "tenth total marks", "ssc total marks", "class 10 total marks", "total marks 10th", "total marks tenth", "total marks ssc", "total marks class 10"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "twelfthRollNumber", "label": "twelfth RollNumber", "terms": ["12th roll number", "12th roll no", "12th seat number", "12th seat no", "twelfth roll number", "twelfth roll no", "twelfth seat number", "twelfth seat no", "hsc roll number", "hsc roll no", "hsc seat number", "hsc seat no", "class 12 roll number", "class 12 roll no", "class 12 seat number", "class 12 seat no", "roll number 12th", "roll no 12th", "seat number 12th", "seat no 12th", "roll number twelfth", "roll no twelfth", "seat number twelfth", "seat no twelfth", "roll number hsc", "roll no hsc", "seat number hsc", "seat no hsc", "roll number class 12", "roll no class 12", "seat number class 12", "seat no class 12"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "twelfthBoard", "label": "twelfth Board", "terms": ["12th board", "12th board name", "twelfth board", "twelfth board name", "hsc board", "hsc board name", "class 12 board", "class 12 board name", "board 12th", "board name 12th", "board twelfth", "board name twelfth", "board hsc", "board name hsc", "board class 12", "board name class 12"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "twelfthSchool", "label": "twelfth School", "terms": ["12th school", "12th school name", "twelfth school", "twelfth school name", "hsc school", "hsc school name", "class 12 school", "class 12 school name", "school 12th", "school name 12th", "school twelfth", "school name twelfth", "school hsc", "school name hsc", "school class 12", "school name class 12"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "twelfthExamYear", "label": "twelfth ExamYear", "terms": ["12th passing year", "12th year of passing", "12th exam year", "twelfth passing year", "twelfth year of passing", "twelfth exam year", "hsc passing year", "hsc year of passing", "hsc exam year", "class 12 passing year", "class 12 year of passing", "class 12 exam year", "passing year 12th", "year of passing 12th", "exam year 12th", "passing year twelfth", "year of passing twelfth", "exam year twelfth", "passing year hsc", "year of passing hsc", "exam year hsc", "passing year class 12", "year of passing class 12", "exam year class 12"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "twelfthPercentage", "label": "twelfth Percentage", "terms": ["12th percentage", "twelfth percentage", "hsc percentage", "class 12 percentage", "percentage 12th", "percentage twelfth", "percentage hsc", "percentage class 12"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
+    {"key": "twelfthTotalMarks", "label": "twelfth TotalMarks", "terms": ["12th total marks", "twelfth total marks", "hsc total marks", "class 12 total marks", "total marks 12th", "total marks twelfth", "total marks hsc", "total marks class 12"], "exclude": ["otp", "captcha", "password", "father", "mother"]},
     { key: 'aadhaar', label: 'Aadhaar number', terms: ['aadhaar', 'aadhar', 'aadhaar number', 'aadhar number', 'aadhaar no', 'aadhar no', 'uid', 'uidai', 'आधार'], exclude: ['name', 'virtual', 'vid', 'father', 'mother'] },
     { key: 'pan', label: 'PAN', terms: ['pan', 'pan number', 'pan no', 'permanent account number'], exclude: ['name', 'aadhaar', 'aadhar', 'father', 'mother'] },
     { key: 'mobile', label: 'Mobile number', terms: ['mobile', 'mobile number', 'mobile no', 'phone', 'phone number', 'phone no', 'contact number', 'contact no', 'cell', 'मोबाइल'], exclude: ['father', 'mother', 'guardian', 'parent', 'alternate', 'alternative', 'emergency', 'landline', 'office', 'otp', 'name'] },
@@ -143,7 +165,8 @@ function sahayakAutofill(p, opts) {
       case 'address': return (p.address || '').replace(/\s+/g, ' ').trim();
       case 'name': {
         const parts = (p.fullName || '').trim().split(/\s+/).filter(Boolean);
-        if (has(desc, 'first') || has(desc, 'given')) return parts[0] || '';
+        if (has(desc, 'first')) return parts[0] || '';
+        if (has(desc, 'given')) return parts.length > 1 ? parts.slice(0,-1).join(' ') : parts[0] || '';
         if (has(desc, 'last') || has(desc, 'surname') || has(desc, 'family')) return parts.length > 1 ? parts[parts.length - 1] : '';
         if (has(desc, 'middle')) return parts.length > 2 ? parts.slice(1, -1).join(' ') : '';
         return parts.join(' ');
@@ -159,11 +182,14 @@ function sahayakAutofill(p, opts) {
     const tag = el.tagName.toLowerCase(), type = (el.type || tag).toLowerCase();
     if (['hidden', 'submit', 'button', 'reset', 'image', 'color', 'range'].includes(type) || !visible(el)) return;
     const prim = describe(el);
-    const manual = hasAny(prim, MANUAL);
-    let rule = manual ? null : findRule(prim);
+    const context = nearby(el);
+    const manual = hasAny(prim, MANUAL) || hasAny(context, MANUAL);
+    const section = norm(el.closest('fieldset')?.querySelector('legend')?.textContent || '');
+    const schoolLevel = /(?:^| )(10th|tenth|ssc|class 10)(?: |$)/.test(section)?'10th':/(?:^| )(12th|twelfth|hsc|class 12)(?: |$)/.test(section)?'12th':'';
+    let rule = manual ? null : (schoolLevel ? findRule(schoolLevel+' '+prim) : null) || findRule(prim);
     let desc = prim;
     if (!rule && !manual) { const nb = nearby(el); rule = findRule(nb); if (rule) desc = prim + ' ' + nb; }
-    if (!rule && !manual) { if (type === 'email') rule = RULES.find((r) => r.key === 'email'); else if (type === 'tel') rule = RULES.find((r) => r.key === 'mobile'); }
+    if (!rule && !manual && !hasAny(prim + ' ' + context, ['father', 'mother', 'guardian', 'parent', 'alternate', 'alternative', 'emergency', 'office'])) { if (type === 'email') rule = RULES.find((r) => r.key === 'email'); else if (type === 'tel') rule = RULES.find((r) => r.key === 'mobile'); }
     const label = (prim || nearby(el) || '(no label)').slice(0, 50);
     const rep = (state, extra) => report.push(Object.assign({ state, rule: rule ? rule.label : null, label, kind: tag === 'select' ? 'dropdown' : type }, extra || {}));
 
@@ -172,9 +198,10 @@ function sahayakAutofill(p, opts) {
 
     // gender radio buttons: decided by the option labels, not by the field name
     if (type === 'radio') {
+      if (el.disabled) return;
       const gname = el.name || el.id;
       if (doneRadios[gname]) return; doneRadios[gname] = true;
-      const group = Array.from(document.querySelectorAll('input[type=radio]')).filter((r) => (r.name || r.id) === gname);
+      const group = Array.from(document.querySelectorAll('input[type=radio]')).filter((r) => (r.name || r.id) === gname && !r.disabled && visible(r));
       const opts = group.map((r) => ({ el: r, textContent: ((r.labels && r.labels[0] && r.labels[0].textContent) || (r.nextSibling && r.nextSibling.textContent) || '') + ' ', value: r.value }));
       const isGender = pickGender(opts, 'Male') && pickGender(opts, 'Female');
       if (!isGender) { if (dryRun) report.push({ state: 'unknown', rule: null, label: gname, kind: 'radio' }); return; }
@@ -188,7 +215,7 @@ function sahayakAutofill(p, opts) {
     }
 
     if (!rule) { if (dryRun) rep(el.disabled || el.readOnly ? 'readonly' : 'unknown'); return; }
-    const isDobReadonly = rule.key === 'dob' && el.readOnly && tag !== 'select';   // date pickers are usually read-only boxes
+    const isDobReadonly = false; // Leave locked date pickers to the user.
     if ((el.disabled || (el.readOnly && !isDobReadonly))) { if (dryRun) rep('readonly'); return; }
 
     // dropdowns
@@ -196,7 +223,7 @@ function sahayakAutofill(p, opts) {
       let opt = null;
       if (rule.key === 'gender') opt = pickGender(realOptions(el), p.gender);
       else if (rule.key === 'dob') opt = pickDobPart(el, p.dob);
-      else if (['state', 'district', 'city'].includes(rule.key)) opt = pickText(el, p[rule.key]);
+      else if (rule.key !== 'name') opt = pickText(el, p[rule.key]);
       else { if (dryRun) rep('unsupported'); return; }
       const have = rule.key === 'dob' ? !!p.dob : rule.key === 'gender' ? !!p.gender : !!p[rule.key];
       if (dryRun) { rep(selectEmpty(el) || overwrite ? (!have ? 'no_value' : opt ? 'will_fill' : 'no_option') : 'filled'); return; }

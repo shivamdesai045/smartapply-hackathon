@@ -38,7 +38,8 @@
     </section>
 
     <div id="appMain" hidden>
-      <section aria-labelledby="h-import">
+      <section><h2>Save directly from the website</h2><p class="note">On the application review page, click <strong>Save details directly to extension</strong>. Your reviewed profile is saved here after you unlock. No file upload is needed.</p></section>
+      <details><summary>Optional: import an older details file</summary><section aria-labelledby="h-import">
         <h2 id="h-import">Import from the Sahayak website</h2>
         <p class="note">On the website press Export, then choose that file here. It is added as a new saved person. Aadhaar and PAN are never in the file: type them below yourself.</p>
         <input id="importFile" type="file" accept=".json,application/json" aria-label="Details file">
@@ -47,8 +48,9 @@
         <div id="importOut" role="status" aria-live="polite"></div>
       </section>
 
+      </details>
       <section aria-labelledby="h-profile">
-        <h2 id="h-profile">Saved details</h2>
+        <h2 id="h-profile">Saved details</h2><button id="showIds" type="button">Show Aadhaar/PAN</button>
         <div class="bar">
           <select id="profile" aria-label="Saved person"></select>
           <button id="newProfile" type="button">New</button>
@@ -66,8 +68,8 @@
           </label>
           <label>Mobile number <input id="mobile" inputmode="numeric" maxlength="10" autocomplete="off"><span class="hint" id="h-mobile"></span></label>
           <label>Email <input id="email" type="email" autocomplete="off"></label>
-          <label>Aadhaar number <input id="aadhaar" inputmode="numeric" maxlength="14" autocomplete="off"><span class="hint" id="h-aadhaar"></span></label>
-          <label>PAN <input id="pan" maxlength="10" autocomplete="off"><span class="hint" id="h-pan"></span></label>
+          <label>Aadhaar number <input type="password" id="aadhaar" inputmode="numeric" maxlength="14" autocomplete="off"><span class="hint" id="h-aadhaar"></span></label>
+          <label>PAN <input type="password" id="pan" maxlength="10" autocomplete="off"><span class="hint" id="h-pan"></span></label>
           <label class="wide">Address <textarea id="address" rows="2"></textarea></label>
           <label>City / village <input id="city" autocomplete="off"></label>
           <label>District <input id="district" autocomplete="off"></label>

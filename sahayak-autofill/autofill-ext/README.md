@@ -34,3 +34,27 @@ Serve them: `python -m http.server 8000` inside this folder, then open `http://l
 - Only EMPTY fields are filled, unless you tick "Replace values already in the form".
 - Fields inside shadow DOM or closed widgets, and non-standard date pickers, may not work. "Check this page" shows what was found.
 - Rules for matching fields are in `lib/autofill.js`. Encryption is in `lib/crypto.js`, the details file format in `lib/profile-io.js`.
+
+## Reviewed application handoff (0.3.0)
+
+After document comparison, choose **Review details & apply online**. The review form includes personal, contact, document-number and academic fields. Conflicting values require a choice or edit. Other extracted document details remain visible and editable, with manual-entry labels where there is no reliable autofill mapping. These edits do not change source documents or mark mismatches resolved.
+
+Load this `autofill-ext` directory as an unpacked extension in Chrome (or Reload an existing installation), then refresh the application at `http://127.0.0.1:5173` or `http://localhost:5173`. The review page and official portal must use the same browser. Confirm the reviewed values and choose **Open official portal & prepare autofill**. On the portal, navigate/sign in to its form and click the floating **Fill reviewed details** button. Repeat after dependent dropdowns or another form page appears.
+
+The handoff uses extension session storage, expires after 30 minutes, and is bound to the newly opened tab and configured portal. Configured UIDAI, ECI, Parivahan and Passport portals may navigate to subdomains of their respective official domains. Unrelated origins, tabs, and frames cannot retrieve or fill the prepared profile. Closing the portal tab or clicking Clear removes its prepared details. The legacy optional encrypted vault remains separate. A masked Aadhaar is never treated as a complete number; full Aadhaar must be entered manually in review if required.
+
+Autofill preserves existing values and does not submit forms, fill passwords/OTP/CAPTCHA, or modify disabled/read-only controls. It fills supported labelled fields in the main frame. Unlabelled controls, cross-origin embedded forms, unfamiliar widgets, and unmapped document fields need manual entry. This is not a guarantee of compatibility with every government portal.
+
+Run from the repository root (requires local frontend and Chrome for browser tests):
+
+```
+node sahayak-tests/test_application_profile.mjs
+node sahayak-tests/test_application_extension.cjs
+node sahayak-tests/test_application_review.cjs
+```
+
+Tests use invented applicant data and isolated browser profiles. The extension test intercepts the form page with a synthetic fixture; it never submits an application. Live government portal compatibility has not been certified by these tests.
+
+## Direct saved profiles (0.4.0)
+
+On the application review screen, confirm the reviewed fields and click **Save details directly to extension**. The extension opens with those details; create a passphrase once or unlock the existing vault. The reviewed profile is then encrypted and persisted in this browser, including supported document IDs and academic fields. No JSON import is required. On a later form, open the toolbar extension, unlock and use Fill. Saved profiles remain editable and deletable; pending unsaved transfers are held only in session storage until setup/unlock completes. The separate portal handoff still expires after 30 minutes.

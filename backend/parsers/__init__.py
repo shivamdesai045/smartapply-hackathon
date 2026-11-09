@@ -21,11 +21,16 @@ SLOT_MAP = {
     "pan": "pan",
     "aadhaar": "aadhaar",
     "10th": "marksheet",
+    "12th": "marksheet",
+    "hsc": "marksheet",
+    "ssc": "marksheet",
     "marksheet": "marksheet",
     "passing certificate": "marksheet",
     "voter": "voter_id",
     "epic": "voter_id",
     "driving": "driving_licence",
+    "learner": "driving_licence",
+    "learning": "driving_licence",
 }
 
 def get_parser_key_from_slot(chosen_option):

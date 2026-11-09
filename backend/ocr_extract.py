@@ -153,17 +153,8 @@ def validate_verhoeff(num_str):
 
 
 def get_ocr_language():
-    """Detects available OCR language packs; prefers 'eng+hin+mar', falls back gracefully."""
-    try:
-        available = set(pytesseract.get_languages())
-        selected = ["eng"]
-        if "hin" in available:
-            selected.append("hin")
-        if "mar" in available:
-            selected.append("mar")
-        return "+".join(selected)
-    except Exception:
-        return "eng"
+    """English-only document recognition."""
+    return "eng"
 
 
 def get_file_extension(filename):
@@ -869,7 +860,8 @@ def check_image_quality(file_path):
                 doc = fitz.open(file_path)
                 if len(doc) > 0:
                     page = doc[0]
-                    pix = page.get_pixmap(dpi=150)
+                    scale = min(150/72, 1600/max(page.rect.width,page.rect.height))
+                    pix = page.get_pixmap(matrix=fitz.Matrix(scale,scale))
                     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 doc.close()
             except Exception:
@@ -883,7 +875,10 @@ def check_image_quality(file_path):
         if not img:
             return {"score": 70, "issues": [], "tips": [], "metrics": {}}
 
+        original_size = img.size
+        img.thumbnail((1600,1600))
         gray = img.convert("L")
+        img.close()
         kernel = ImageFilter.Kernel((3, 3), [0, 1, 0, 1, -4, 1, 0, 1, 0], scale=1)
         lap = gray.filter(kernel)
         stat_lap = ImageStat.Stat(lap)
@@ -892,7 +887,7 @@ def check_image_quality(file_path):
         stat_gray = ImageStat.Stat(gray)
         mean_bright = stat_gray.mean[0] if stat_gray.mean else 128.0
         std_contrast = stat_gray.stddev[0] if stat_gray.stddev else 50.0
-        w, h = img.size
+        w, h = original_size
 
         issues = []
         tips = []
@@ -985,40 +980,58 @@ def detect_document_type(text):
     return None
 
 
-def extract_fields(file_path, original_filename, chosen_option=None):
+def _extract_fields_uncached(file_path, original_filename, chosen_option=None, password=None):
+    import time
+    extraction_started = time.monotonic()
     """
     Extracts name, dob, address, doc_number, father_name, mother_name, doc_meta, and raw_text from file.
     Always returns a safe dict with ocrAttempted: bool, boxes, lines, and ocrConfidence.
     """
+    from document_fields import enrich_fields
     ext = get_file_extension(original_filename)
+    if re.search(r"\b(?:photograph|photo|signature)\b", chosen_option or "", re.I):
+        return enrich_fields({"name": None, "dob": None, "address": None, "doc_number": None,
+                              "raw_text": "", "doc_meta": {}, "ocrAttempted": False,
+                              "ocrSkipped": "Photographs and signatures do not require OCR."}, {}, chosen_option)
     if ext not in SUPPORTED_EXTENSIONS:
-        return {
+        return enrich_fields({
             "name": None, "dob": None, "address": None, "doc_number": None,
             "father_name": None, "mother_name": None, "doc_meta": {},
             "raw_text": "", "ocrAttempted": False
-        }
+        }, {}, chosen_option)
 
     ocr_data = None
     try:
-        ocr_data = ocr_boxes.extract_ocr_with_boxes(file_path, original_filename)
+        if ext in IMAGE_EXTENSIONS and os.getenv('OCR_ENGINE','paddleocr').lower() == 'paddleocr':
+            from fast_ocr import fast_image_read
+            ocr_data = fast_image_read(file_path, chosen_option)
+        if ocr_data is None:
+            ocr_data = ocr_boxes.extract_ocr_with_boxes(file_path, original_filename, **({"password": password} if password else {}), **({"chosen_option": chosen_option} if os.getenv("OCR_FAST_TEXT_PASS", "0") == "1" else {}))
         text = ocr_data.get("text", "")
-    except Exception:
+    except Exception as exc:
         text = ""
+        ocr_data = {"text": "", "error_code": getattr(exc, "code", "OCR_ENGINE_FAILED")}
 
-    if not text.strip():
+    if not text.strip() and ocr_data is None and not password:
         text = extract_text(file_path, original_filename)
 
     if not text.strip():
-        return {
+        empty = {
             "name": None, "dob": None, "address": None, "doc_number": None,
             "father_name": None, "mother_name": None, "doc_meta": {},
             "raw_text": "", "ocrAttempted": True
         }
+        if ocr_data:
+            for key in ("error_code", "password_required", "truncated", "page_count", "total_pages"):
+                if key in ocr_data:
+                    empty[key] = ocr_data[key]
+        return enrich_fields(empty, ocr_data or {}, chosen_option)
 
+    reading_finished = time.monotonic()
     issuer = detect_issuer(text)
     state = detect_state(text)
     detected_type = detect_document_type(text)
-    quality = check_image_quality(file_path)
+    quality = None if ocr_data.get("source") == "digital_pdf" else check_image_quality(file_path)
 
     doc_warning = None
     if chosen_option and detected_type:
@@ -1040,11 +1053,17 @@ def extract_fields(file_path, original_filename, chosen_option=None):
     if doc_warning:
         doc_meta["documentTypeWarning"] = doc_warning
 
+    # Explicit, validated identity fields need no second ML classifier pass.
+    structured = enrich_fields({}, ocr_data or {"text": text}, chosen_option)
     parsed = {}
-    try:
-        parsed = parsers.parse_document(ocr_data or {"text": text}, chosen_option=chosen_option)
-    except Exception:
-        parsed = {}
+    if all(structured.get(field) for field in ('name','dob','doc_number')) and not structured.get('doc_meta',{}).get('core_field_conflicts'):
+        parsed = {**structured, 'field_confidences': structured.get('fieldConfidence', {}),
+                  'needs_review': structured.get('needsReview', {})}
+    else:
+        try:
+            parsed = parsers.parse_document(ocr_data or {"text": text}, chosen_option=chosen_option)
+        except Exception:
+            parsed = {}
 
     res = {
         "name": parsed.get("name") or guess_name(text, chosen_option=chosen_option),
@@ -1081,4 +1100,35 @@ def extract_fields(file_path, original_filename, chosen_option=None):
         res["lines"] = ocr_data.get("lines", [])
         res["ocrConfidence"] = ocr_data.get("mean_confidence", 0.0)
         res["ocrEngine"] = ocr_data.get("engine", "tesseract")
+    res = enrich_fields(res, ocr_data or {"text": text}, chosen_option)
+    parsing_finished = time.monotonic()
+    if ocr_data and any(not res.get(field) for field in ("name", "dob", "doc_number")):
+        from core_field_retry import recover_core_fields
+        res = recover_core_fields(res, ocr_data, file_path, chosen_option, password, deadline=extraction_started + float(os.getenv("OCR_RETRY_BUDGET_SECONDS", "8")))
+    if ocr_data:
+        res["ocrWarnings"] = ocr_data.get("warnings", [])
+        res["page_count"] = ocr_data.get("page_count", 1)
+        res["truncated"] = ocr_data.get("truncated", False)
+        if ocr_data.get("truncated") or ocr_data.get("budget_exceeded"):
+            res["needs_review"] = True
+            for entry in res["doc_fields"].values():
+                entry["needs_review"] = True
+            res["needsReview"] = {field: True for field in res["doc_fields"]}
+    if ocr_data.get('engine') == 'tesseract_fast':
+        res['needs_review'] = True
+        for field, entry in res.get('doc_fields', {}).items():
+            entry['needs_review'] = True
+            res.setdefault('needsReview', {})[field] = True
+    res['timings'] = {**(ocr_data or {}).get('timings', {}),
+                      'reading_seconds':round(reading_finished-extraction_started,3),
+                      'field_extraction_seconds':round(parsing_finished-reading_finished,3),
+                      'retry_seconds':round(time.monotonic()-parsing_finished,3),
+                      'total_seconds':round(time.monotonic()-extraction_started,3)}
     return res
+
+
+def extract_fields(file_path, original_filename, chosen_option=None, password=None, cache_scope=None):
+    # An explicit authenticated scope is required; scripts and rescans bypass reuse.
+    from ocr_result_cache import cached_extraction
+    return cached_extraction(file_path, original_filename, chosen_option, password, cache_scope,
+                             lambda: _extract_fields_uncached(file_path, original_filename, chosen_option, password))

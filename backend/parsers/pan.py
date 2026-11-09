@@ -33,9 +33,10 @@ def parse_pan(ocr_data, chosen_option=None):
     }
 
     # 1. Document Number (10 alphanumeric characters)
-    pan_m = re.search(r"\b([A-Z]{5}[0-9]{4}[A-Z])\b", text.upper())
+    # Accept OCR-inserted spaces within a PAN; never replace O/0 or I/1 by guessing.
+    pan_m = re.search(r"\b((?:[A-Z][ \t]*){5}(?:[0-9][ \t]*){4}[A-Z])\b", text.upper())
     if pan_m:
-        pan_num = pan_m.group(1)
+        pan_num = re.sub(r"\s", "", pan_m.group(1))
         extracted["doc_number"] = {"type": "PAN", "number": pan_num}
         w_matches = extract_words_matching_text(words, pan_num)
         extracted["field_confidences"]["doc_number"] = calculate_field_confidence(w_matches, 1.0, 1.0)
@@ -94,4 +95,39 @@ def parse_pan(ocr_data, chosen_option=None):
                         extracted["field_confidences"]["name"] = calculate_field_confidence(lines[idx - 1].get("words", []), 0.85, 0.9)
                         break
 
+    # Resolve labels by line: \s in the legacy patterns could consume a parent
+    # name or the next heading. Holder labels must never match Father's Name.
+    from document_fields import person, strict_date
+    label_patterns = {
+        "name": r"(?:name|नाम)",
+        "father_name": r"(?:father['’]?s?\s*name|पिता\s*का\s*नाम)",
+        "dob": r"(?:date\s*of\s*birth|d\.?o\.?b\.?|जन्म\s*(?:तिथि|तारीख))",
+    }
+    rows = [line.strip() for line in text.splitlines() if line.strip()]
+    all_labels = "|".join(label_patterns.values())
+    for field, pattern in label_patterns.items():
+        candidates = []
+        for idx, row in enumerate(rows):
+            match = re.match(r"^(?:" + pattern + r")\s*[:：/\-]?\s*(.*)$", row, re.I)
+            if not match:
+                continue
+            value = match.group(1).strip()
+            # Bilingual name labels can precede a value on the following line.
+            value = re.sub(r"^(?:नाम|Name)\s*[:：/]?\s*", "", value, flags=re.I)
+            if not value and idx + 1 < len(rows):
+                value = rows[idx + 1]
+            boundary = re.search(r"(?:" + all_labels + r")\s*[:：]", value, re.I)
+            if boundary:
+                value = value[:boundary.start()].strip()
+            parsed_value = strict_date(value) if field == "dob" else person(value)
+            if parsed_value and not any(w in parsed_value.lower().split() for w in PAN_STOPWORDS):
+                candidates.append(parsed_value)
+        unique = set(candidates)
+        if unique:
+            extracted[field] = candidates[0] if len(unique) == 1 else None
+            matches = extract_words_matching_text(words, candidates[0])
+            extracted["field_confidences"][field] = calculate_field_confidence(matches, 1., 1.) if len(unique) == 1 else 0.
+    if extracted.get("name") == extracted.get("father_name"):
+        extracted["name"] = None
+        extracted["field_confidences"]["name"] = 0.
     return extracted

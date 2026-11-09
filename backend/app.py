@@ -22,6 +22,7 @@ from correction_guide import get_guidance
 from ocr_extract import extract_fields, validate_file, SUPPORTED_EXTENSIONS
 from chat_engine import handle_chat_query
 import db
+from field_storage import FIELD_NAMES, sanitize, json_object
 
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(dotenv_path=env_path)
@@ -200,16 +201,38 @@ def get_safe_upload_path(session_id, service_name, variant, requirement=None, ex
     return folder, None
 
 
+
+def compare_documents(documents, service_name=None, variant="adult"):
+    profile = None
+    if session.get("user_id") and variant == "adult":
+        user = db.get_user_by_id(session["user_id"])
+        if user:
+            profile = {"full_name": user.get("full_name"), "mobile_number": user.get("mobile_number")}
+    from verification_policy import get_policy
+    return check_mismatches(documents, profile=profile, policy=get_policy(service_name))
+
 def build_issue_key(field, doc_a, doc_b):
     """Stable key for a mismatch issue, regardless of document order."""
     parts = sorted([doc_a.strip().lower(), doc_b.strip().lower()])
     return f"{field}::{parts[0]}|{parts[1]}"
 
 
+def ocr_error_message(code):
+    return {
+        "OCR_BUSY": "Another document is still being read. Wait for that scan to finish, then retry.",
+        "OCR_TIMEOUT": "Reading this page exceeded 70 seconds. Try a clear cropped image or a PDF with selectable text.",
+        "OCR_WORKER_CRASH": "The local OCR process stopped. Retry once; if it repeats, this file needs investigation.",
+        "OCR_MODEL_ERROR": "The OCR model could not read this file. Try a clear upright image or another PDF export.",
+        "OCR_ENGINE_FAILED": "OCR could not process this file. Try another image or PDF export.",
+        "PDF_PASSWORD_REQUIRED": "This PDF needs its password. Enter it before uploading.",
+    }.get(code, "Unable to read document. Check the PDF password or file.")
+
+
 @app.route("/health", methods=["GET"])
 @app.route("/api/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "message": "Sahayak backend is running"})
+    return jsonify({"status": "ok", "message": "Sahayak backend is running",
+                    "ocr_engine": os.getenv("OCR_ENGINE", "paddleocr")})
 
 
 @app.route("/api/session", methods=["GET"])
@@ -320,10 +343,16 @@ def get_checklist_status(service_name):
                 "docDob": req_progress["docDob"],
                 "docAddress": req_progress["docAddress"],
                 "docNumber": req_progress.get("docNumber"),
+            "doc_fields": req_progress.get("doc_fields", {}),
+            "docFields": req_progress.get("doc_fields", {}),
+            "ocr_version": req_progress.get("ocr_version"),
+            "needs_review": req_progress.get("needs_review", True),
+            "user_verified": req_progress.get("user_verified", False),
                 "manuallyEdited": req_progress.get("manuallyEdited", False),
                 "fieldConfidence": req_progress.get("fieldConfidence", {}),
                 "fieldConfidences": req_progress.get("fieldConfidence", {}),
                 "needsReview": req_progress.get("needsReview", {}),
+                "aadhaarReviewReasons": (req_progress.get("docMeta") or {}).get("aadhaar_review_reasons", []),
             }
         )
 
@@ -357,6 +386,62 @@ def get_checklist_status(service_name):
             "servicePortal": get_service_portal(service_name),
         }
     )
+
+
+def run_document_job(work, key, cleanup=lambda: None):
+    if request.headers.get("Prefer") != "respond-async":
+        try:
+            return work()
+        finally:
+            cleanup()
+    from ocr_jobs import jobs
+    owner = session.get("user_id")
+    def execute():
+        with app.app_context():
+            response = app.make_response(work())
+            return response.get_json(), response.status_code
+    try:
+        job_id = jobs.submit(owner, key, execute, cleanup)
+    except ValueError as exc:
+        cleanup()
+        return jsonify({"error": str(exc), "code": "OCR_QUEUE_FULL_OR_DUPLICATE"}), 409
+    return jsonify({"job_id": job_id, "status": "accepted"}), 202
+
+
+@app.route("/api/ocr/health", methods=["GET"])
+def ocr_health():
+    from paddle_engine import worker_status
+    response = jsonify(worker_status())
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.route("/api/ocr/jobs/active", methods=["GET"])
+@login_required
+def active_ocr_job():
+    from ocr_jobs import jobs
+    key = tuple(request.args.get(k) for k in ("session_id", "service", "variant", "requirement"))
+    if not all(key): return jsonify({"error": "Missing checklist context"}), 400
+    response = jsonify({"job_id": jobs.find_active(session.get("user_id"), key)})
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.route("/api/ocr/jobs/<job_id>", methods=["GET", "DELETE"])
+@limiter.limit("600 per minute", override_defaults=True)
+@login_required
+def ocr_job_status(job_id):
+    from ocr_jobs import jobs
+    owner = session.get("user_id")
+    if request.method == "DELETE":
+        cancelled = jobs.cancel(job_id, owner)
+        if cancelled is None: return jsonify({"error": "OCR job not found"}), 404
+        if not cancelled: return jsonify({"error": "This document is already being read."}), 409
+    result = jobs.status(job_id, owner)
+    if result is None: return jsonify({"error": "OCR job expired or the backend restarted. Please retry."}), 404
+    response = jsonify(result)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 @app.route("/api/checklist/<service_name>/upload", methods=["POST"])
@@ -394,6 +479,16 @@ def upload_checklist_file(service_name):
             {"error": f"'{chosen_option}' is not an accepted option for '{requirement}'"}
         ), 400
 
+    files = request.files.getlist("file")
+    if len(files) > 1:
+        if not re.search(r"aadh?aar|adhar", chosen_option, re.I):
+            return jsonify({"error": "Multiple photos are supported for Aadhaar only."}), 400
+        from aadhaar_upload import combine_aadhaar_photos
+        try:
+            file = combine_aadhaar_photos(files)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
     orig_filename = secure_filename(file.filename) or "upload"
     ext = os.path.splitext(orig_filename)[1].lower()
     if ext not in SUPPORTED_EXTENSIONS:
@@ -419,57 +514,69 @@ def upload_checklist_file(service_name):
                 pass
         return jsonify({"error": err_msg}), 400
 
-    # Atomic write: replace target file only when validation succeeds
-    try:
-        os.replace(temp_path, final_path)
-    except OSError:
-        # Fallback for Windows if destination is locked
-        if os.path.exists(final_path):
-            try:
-                os.remove(final_path)
-            except OSError:
-                pass
-        os.rename(temp_path, final_path)
-
-    # Run OCR on the validated file to extract identity fields
-    ocr_fields = extract_fields(final_path, file.filename, chosen_option=chosen_option)
-    doc_name = ocr_fields.get("name")
-    doc_dob = ocr_fields.get("dob")
-    doc_address = ocr_fields.get("address")
-    doc_number = ocr_fields.get("doc_number")
-    raw_text = ocr_fields.get("raw_text")
-
+    original_name = file.filename
+    password = request.form.get("password")
     user_id = session.get("user_id")
+    def finish_upload():
+        # Run OCR on the validated file to extract identity fields
+        ocr_fields = extract_fields(temp_path, original_name, chosen_option=chosen_option, cache_scope=(user_id, session_id),
+                                    **({"password": password} if password else {}))
+        sensitive_token=ocr_fields.pop("_identity_ciphertext",None)
+        ocr_fields = sanitize(ocr_fields)
+        if ocr_fields.get("error_code"):
+            # Passwords never enter the DB, logs, or a response. Allow a fresh upload retry.
+            os.remove(temp_path)
+            return jsonify({"error": ocr_error_message(ocr_fields.get("error_code")),
+                            "code": ocr_fields["error_code"],
+                            "password_required": ocr_fields.get("password_required", False)}), 400
+        # Keep the previous upload intact if OCR/password validation fails.
+        try:
+            os.replace(temp_path, final_path)
+        except OSError:
+            os.remove(temp_path)
+            return jsonify({"error": "The existing document is in use. Close its viewer and retry."}), 409
+        doc_name = ocr_fields.get("name")
+        doc_dob = ocr_fields.get("dob")
+        doc_address = ocr_fields.get("address")
+        doc_number = ocr_fields.get("doc_number")
+        raw_text = ocr_fields.get("raw_text")
 
-    doc_meta_payload = {
-        **(ocr_fields.get("doc_meta") or {}),
-        "fieldConfidence": ocr_fields.get("fieldConfidence", {}),
-        "fieldConfidences": ocr_fields.get("fieldConfidence", {}),
-        "needsReview": ocr_fields.get("needsReview", {}),
-        "quality": ocr_fields.get("quality"),
-        "detectedType": ocr_fields.get("detectedType"),
-        "documentTypeWarning": ocr_fields.get("documentTypeWarning"),
-    }
 
-    db.mark_uploaded(
-        session_id, service_name, variant, requirement, chosen_option, final_path,
-        doc_name=doc_name, doc_dob=doc_dob, doc_address=doc_address, doc_number=doc_number,
-        raw_text=raw_text, user_id=user_id, doc_meta=doc_meta_payload,
-    )
-
-    return jsonify(
-        {
-            "message": "Uploaded and scanned successfully",
-            "requirement": requirement,
-            "chosenOption": chosen_option,
-            "filePath": final_path,
-            "ocrExtracted": ocr_fields,
-            "extracted": ocr_fields,
+        doc_meta_payload = {
+            **(ocr_fields.get("doc_meta") or {}),
+            "fieldConfidence": ocr_fields.get("fieldConfidence", {}),
+            "fieldConfidences": ocr_fields.get("fieldConfidence", {}),
+            "needsReview": ocr_fields.get("needsReview", {}),
             "quality": ocr_fields.get("quality"),
-            "documentTypeWarning": ocr_fields.get("documentTypeWarning"),
             "detectedType": ocr_fields.get("detectedType"),
+            "documentTypeWarning": ocr_fields.get("documentTypeWarning"),
         }
-    )
+
+        db.mark_uploaded(
+            session_id, service_name, variant, requirement, chosen_option, final_path,
+            doc_name=doc_name, doc_dob=doc_dob, doc_address=doc_address, doc_number=doc_number,
+            raw_text=None, user_id=user_id, doc_meta=doc_meta_payload,
+            doc_fields=ocr_fields.get("doc_fields"), ocr_version=ocr_fields.get("ocr_version"), sensitive_token=sensitive_token,
+        )
+
+        return jsonify(
+            {
+                "message": "Uploaded and scanned successfully",
+                "requirement": requirement,
+                "chosenOption": chosen_option,
+                "filePath": final_path,
+                "ocrExtracted": ocr_fields,
+                "extracted": ocr_fields,
+                "quality": ocr_fields.get("quality"),
+                "documentTypeWarning": ocr_fields.get("documentTypeWarning"),
+                "detectedType": ocr_fields.get("detectedType"),
+            }
+        )
+
+    def cleanup_upload():
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+    return run_document_job(finish_upload, (session_id, service_name, variant, requirement), cleanup_upload)
 
 
 @app.route("/api/checklist/<service_name>/update-fields", methods=["POST"])
@@ -493,47 +600,28 @@ def update_checklist_fields(service_name):
 
     user_id = session.get("user_id")
 
-    # Feedback loop: Capture user correction diff for ML continuous adaptation
+    progress = db.get_progress(session_id, service_name, variant, user_id=user_id)
+    if requirement not in progress:
+        return jsonify({"error": "Document not found"}), 404
+    fields = data.get("doc_fields", data.get("fields", {}))
+    if not isinstance(fields, dict) or any(k not in FIELD_NAMES for k in fields):
+        return jsonify({"error": "Unknown field or invalid fields object"}), 400
+    # Legacy four-field editor remains supported. Only supplied keys are changed.
+    fields = dict(fields)
+    for name, aliases in {"name": ("doc_name", "docName"), "dob": ("doc_dob", "docDob"),
+                          "address": ("doc_address", "docAddress"), "doc_number": ("doc_number", "docNumber")}.items():
+        for alias in aliases:
+            if alias in data:
+                fields[name] = data[alias]
+                break
     try:
-        from ml.feedback.feedback_store import record_feedback
-        progress_map = db.get_progress(session_id, service_name, variant, user_id=user_id)
-        current_req = progress_map.get(requirement) or {}
-        orig_fields = {
-            "name": current_req.get("docName"),
-            "dob": current_req.get("docDob"),
-            "address": current_req.get("docAddress"),
-            "doc_number": current_req.get("docNumber"),
-        }
-        new_fields = {
-            "name": data.get("doc_name") or data.get("docName"),
-            "dob": data.get("doc_dob") or data.get("docDob"),
-            "address": data.get("doc_address") or data.get("docAddress"),
-            "doc_number": data.get("doc_number") or data.get("docNumber"),
-        }
-        file_path = current_req.get("filePath")
-        chosen_opt = current_req.get("chosenOption") or requirement
-        record_feedback(
-            doc_type=chosen_opt,
-            original_fields=orig_fields,
-            corrected_fields=new_fields,
-            file_path=file_path,
-            session_id=session_id,
-            service_name=service_name,
-            variant=variant,
-            requirement=requirement,
-        )
-    except Exception:
-        pass
-
-    db.update_fields(
-        session_id, service_name, variant, requirement,
-        data.get("doc_name") or data.get("docName") or None,
-        data.get("doc_dob") or data.get("docDob") or None,
-        data.get("doc_address") or data.get("docAddress") or None,
-        data.get("doc_number") or data.get("docNumber") or None,
-        manually_edited=True, user_id=user_id,
-    )
-    return jsonify({"message": "Fields updated successfully"})
+        db.update_fields(session_id, service_name, variant, requirement, None, None, None,
+                         manually_edited=True, user_id=user_id, doc_fields=fields)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Field values must be text or null, at most 4000 characters"}), 400
+    updated = db.get_progress(session_id, service_name, variant, user_id=user_id)[requirement]
+    return jsonify({"message": "Fields updated successfully", "doc_fields": updated["doc_fields"],
+                    "needs_review": updated["needs_review"], "user_verified": updated["user_verified"]})
 
 
 @app.route("/api/feedback", methods=["POST"])
@@ -645,26 +733,35 @@ def rescan_checklist_file(service_name):
     progress = db.get_progress(session_id, service_name, variant, user_id=user_id)
     chosen_opt = (progress.get(requirement) or {}).get("chosenOption")
 
-    fresh = extract_fields(real_path, os.path.basename(real_path), chosen_option=chosen_opt)
-    fresh_meta = {
-        **(fresh.get("doc_meta") or {}),
-        "fieldConfidence": fresh.get("fieldConfidence", {}),
-        "fieldConfidences": fresh.get("fieldConfidence", {}),
-        "needsReview": fresh.get("needsReview", {}),
-        "quality": fresh.get("quality"),
-        "detectedType": fresh.get("detectedType"),
-        "documentTypeWarning": fresh.get("documentTypeWarning"),
-    }
-    db.update_fields(
-        session_id, service_name, variant, requirement,
-        fresh.get("name"), fresh.get("dob"), fresh.get("address"), fresh.get("doc_number"),
-        raw_text=fresh.get("raw_text"), manually_edited=False, user_id=user_id, doc_meta=fresh_meta
-    )
-    return jsonify({
-        "message": "Document rescanned successfully",
-        "requirement": requirement,
-        "extracted": fresh
-    }), 200
+    def finish_rescan():
+        fresh = extract_fields(real_path, os.path.basename(real_path), chosen_option=chosen_opt,
+                               **({"password": data.get("password")} if data.get("password") else {}))
+        sensitive_token=fresh.pop("_identity_ciphertext",None)
+        fresh = sanitize(fresh)
+        if fresh.get("error_code"):
+            return jsonify({"error": ocr_error_message(fresh.get("error_code")),
+                            "code": fresh["error_code"], "password_required": fresh.get("password_required", False)}), 400
+        fresh_meta = {
+            **(fresh.get("doc_meta") or {}),
+            "fieldConfidence": fresh.get("fieldConfidence", {}),
+            "fieldConfidences": fresh.get("fieldConfidence", {}),
+            "needsReview": fresh.get("needsReview", {}),
+            "quality": fresh.get("quality"),
+            "detectedType": fresh.get("detectedType"),
+            "documentTypeWarning": fresh.get("documentTypeWarning"),
+        }
+        db.update_fields(
+            session_id, service_name, variant, requirement,
+            fresh.get("name"), fresh.get("dob"), fresh.get("address"), fresh.get("doc_number"),
+            raw_text=None, manually_edited=False, user_id=user_id, doc_meta=fresh_meta,
+            doc_fields=fresh.get("doc_fields"), ocr_version=fresh.get("ocr_version"), sensitive_token=sensitive_token
+        )
+        return jsonify({
+            "message": "Document rescanned successfully",
+            "requirement": requirement,
+            "extracted": fresh
+        }), 200
+    return run_document_job(finish_rescan, (session_id, service_name, variant, requirement))
 
 
 @app.route("/api/checklist/<service_name>/file", methods=["GET"])
@@ -727,7 +824,7 @@ def get_checklist_mismatches(service_name):
     documents = db.get_documents_with_data(session_id, service_name, variant, user_id=user_id)
     decisions = db.get_decisions(session_id, service_name, variant, user_id=user_id)
 
-    if len(documents) < 2:
+    if not documents:
         satisfied_info = []
         for doc_k, doc_val in documents.items():
             reqs = doc_val.get("requirements", [])
@@ -764,7 +861,7 @@ def get_checklist_mismatches(service_name):
             }
         )
 
-    result = check_mismatches(documents)
+    result = compare_documents(documents, service_name, variant)
 
     issues_with_decisions = []
     pending_count = 0
@@ -843,7 +940,7 @@ def check_mismatches_route():
     if not isinstance(documents, dict) or len(documents) < 2:
         return jsonify({"error": "Provide at least 2 documents to compare"}), 400
 
-    result = check_mismatches(documents)
+    result = compare_documents(documents, data.get("service"), data.get("variant", "adult"))
     return jsonify(result)
 
 
@@ -953,6 +1050,8 @@ def login():
 
 @app.route("/api/auth/logout", methods=["POST"])
 def logout():
+    from ocr_result_cache import clear_owner
+    clear_owner(session.get("user_id"))
     session.clear()
     return jsonify({"message": "Logout successful"}), 200
 
@@ -983,6 +1082,8 @@ def delete_session_data_route():
     user_id = session.get("user_id")
     if not session_id and not user_id:
         return jsonify({"error": "session_id is required"}), 400
+    from ocr_result_cache import clear_owner
+    clear_owner(user_id)
     db.delete_session_data(session_id, user_id=user_id)
     return jsonify({"message": "Session data and files wiped successfully"}), 200
 
@@ -1059,6 +1160,10 @@ def get_user_documents_route():
             "doc_dob": doc.get("doc_dob"),
             "doc_address": doc.get("doc_address"),
             "doc_number": doc.get("doc_number"),
+            "doc_fields": json_object(doc.get("doc_fields")),
+            "ocr_version": doc.get("ocr_version"),
+            "needs_review": bool(doc.get("needs_review", True)),
+            "user_verified": bool(doc.get("user_verified", False)),
         })
     return jsonify({"documents": result}), 200
 
@@ -1068,6 +1173,8 @@ def get_user_documents_route():
 def delete_user_document_route(doc_id):
     """Deletes a single document owned by the logged-in user."""
     user_id = session.get("user_id")
+    from ocr_result_cache import clear_owner
+    clear_owner(user_id)
     fpath = db.delete_user_document(user_id, doc_id)
     if not fpath:
         return jsonify({"error": "Document not found or access denied"}), 404
@@ -1089,6 +1196,8 @@ def delete_user_document_route(doc_id):
 def delete_all_user_documents_route():
     """Deletes all documents owned by the logged-in user."""
     user_id = session.get("user_id")
+    from ocr_result_cache import clear_owner
+    clear_owner(user_id)
     file_paths = db.delete_all_user_documents(user_id)
     base_dir = os.path.realpath(UPLOAD_FOLDER)
     for fpath in file_paths:
@@ -1138,6 +1247,26 @@ def post_correction_step_route(service_name):
     }), 200
 
 
+@app.route('/api/checklist/<service_name>/reviewed-ids', methods=['POST'])
+@login_required
+def get_reviewed_identity_numbers(service_name):
+    from identity_store import reviewed_ids
+    from cryptography.fernet import InvalidToken
+    data=request.get_json(silent=True) or {}
+    if data.get('confirmed') is not True:return jsonify({'error':'Confirm that you want to use these IDs for autofill.'}),400
+    origin=request.headers.get('Origin')
+    allowed={request.host_url.rstrip('/'),'http://localhost:5173','http://127.0.0.1:5173',os.getenv('FRONTEND_ORIGIN','')}
+    if origin and origin not in allowed:return jsonify({'error':'Untrusted origin'}),403
+    try:
+        with db.get_db_connection() as conn:documents=reviewed_ids(conn,session['user_id'],service_name,data.get('variant','adult'))
+    except (InvalidToken,RuntimeError,ValueError):
+        return jsonify({'error':'Stored IDs could not be unlocked. Check the server encryption key; do not replace it.'}),503
+    response=jsonify({'documents':documents})
+    response.headers['Cache-Control']='no-store, private'
+    response.headers['Pragma']='no-cache'
+    return response
+
+
 @app.route("/api/report/<service_name>", methods=["GET"])
 def get_verification_report(service_name):
     """Generates printable verification summary report and readiness score."""
@@ -1155,7 +1284,7 @@ def get_verification_report(service_name):
     correction_steps = db.get_correction_steps(user_id, service_name, variant) if user_id else {}
 
     # Calculate mismatch results
-    mismatch_result = check_mismatches(docs_data) if len(docs_data) >= 2 else {
+    mismatch_result = compare_documents(docs_data, service_name, variant) if docs_data else {
         "issues": [], "comparisons": [], "enoughData": False, "clean": True, "verificationStatus": "insufficient_data"
     }
 
@@ -1203,6 +1332,7 @@ def get_verification_report(service_name):
             "docDob": p.get("docDob"),
             "docAddress": p.get("docAddress"),
             "docNumber": p.get("docNumber"),
+            "doc_fields": p.get("doc_fields", {}),
         })
 
     if total_count == 0:
@@ -1224,6 +1354,8 @@ def get_verification_report(service_name):
         readiness_label = f"{readiness_score}% Ready"
 
     if request.args.get("finalize") in ("1", "true") or request.args.get("delete_files") in ("1", "true"):
+        from ocr_result_cache import clear_owner
+        clear_owner(user_id)
         db.delete_verified_files(session_id, service_name, variant, user_id=user_id)
 
     return jsonify({
@@ -1248,6 +1380,8 @@ def purge_checklist_files(service_name):
     session_id = get_request_session_id() or session.get("session_id")
     user_id = session.get("user_id")
     variant = request.args.get("variant", "adult")
+    from ocr_result_cache import clear_owner
+    clear_owner(user_id)
     db.delete_verified_files(session_id, service_name, variant, user_id=user_id)
     return jsonify({"message": "Uploaded files safely purged after verification."}), 200
 
@@ -1272,7 +1406,7 @@ def chat():
     if service and (user_id or session_id):
         docs = db.get_documents_with_data(session_id, service, variant, user_id=user_id)
         if len(docs) >= 2:
-            res = check_mismatches(docs)
+            res = compare_documents(docs, service, variant)
             if res.get("issues"):
                 mismatches_summary = [f"{i['field']} differs between {i['documents'][0]} and {i['documents'][1]}" for i in res["issues"]]
 
@@ -1285,6 +1419,10 @@ def chat():
         history=history,
     )
     return jsonify(response_data), 200
+
+if os.getenv("OCR_PRELOAD") == "1" and os.getenv("OCR_ENGINE", "paddleocr").lower() == "paddleocr":
+    from paddle_engine import start_warmup
+    start_warmup()
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)

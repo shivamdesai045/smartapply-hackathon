@@ -1,0 +1,153 @@
+{
+  "synthetic": true,
+  "limitations": [
+    "Invented English layouts and identifiers; not real documents or a held-out accuracy estimate.",
+    "PAN uses deliberately invalid entity Z. All extracted values require source verification."
+  ],
+  "fixtures": [
+    {
+      "id": "aadhaar",
+      "document_type": "Aadhaar Card",
+      "file": "aadhaar.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "XXXXXXXX1234"
+      }
+    },
+    {
+      "id": "aadhaar_split",
+      "document_type": "Aadhaar Card",
+      "file": "aadhaar_split.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "XXXXXXXX1234"
+      }
+    },
+    {
+      "id": "cbse_narrative",
+      "document_type": "10th Marksheet",
+      "file": "cbse_narrative.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "00123456"
+      }
+    },
+    {
+      "id": "ssc_surname_first",
+      "document_type": "10th Marksheet",
+      "file": "ssc_surname_first.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "EXAMPLE AARAV SURESH",
+        "dob": "2002-08-19",
+        "doc_number": "A001234"
+      }
+    },
+    {
+      "id": "hsc_fullname",
+      "document_type": "12th Marksheet",
+      "file": "hsc_fullname.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "B001234"
+      }
+    },
+    {
+      "id": "cbse_twelve",
+      "document_type": "12th Marksheet",
+      "file": "cbse_twelve.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "00987654"
+      }
+    },
+    {
+      "id": "pan",
+      "document_type": "PAN Card",
+      "file": "pan.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "ABCZE1234F"
+      }
+    },
+    {
+      "id": "passport",
+      "document_type": "Passport",
+      "file": "passport.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "A0000000"
+      }
+    },
+    {
+      "id": "voter",
+      "document_type": "Voter ID Card",
+      "file": "voter.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "ZZZ0000000"
+      }
+    },
+    {
+      "id": "driving",
+      "document_type": "Driving Licence",
+      "file": "driving.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "MH1420250000000"
+      }
+    },
+    {
+      "id": "learner",
+      "document_type": "Learner Licence",
+      "file": "learner.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "MH/00000/2025"
+      }
+    },
+    {
+      "id": "birth",
+      "document_type": "Birth Certificate",
+      "file": "birth.png",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "doc_number": "TEST/2002/00001"
+      }
+    }
+  ]
+}

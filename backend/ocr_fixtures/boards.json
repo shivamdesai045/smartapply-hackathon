@@ -1,0 +1,237 @@
+{
+  "synthetic": true,
+  "limitations": [
+    "12 synthetic English sheets; no real board accuracy claim",
+    "Simulated phone degradation; no seals or complex table backgrounds"
+  ],
+  "fixtures": [
+    {
+      "id": "board_ssc_clean",
+      "file": "board_ssc_clean.png",
+      "document_type": "10th Marksheet",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "10th",
+        "board": "Maharashtra State Board",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_ssc_phone",
+      "file": "board_ssc_phone.png",
+      "document_type": "10th Marksheet",
+      "quality": "phone",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "10th",
+        "board": "Maharashtra State Board",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_hsc_clean",
+      "file": "board_hsc_clean.png",
+      "document_type": "12th Marksheet",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "12th",
+        "board": "Maharashtra State Board",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_hsc_phone",
+      "file": "board_hsc_phone.png",
+      "document_type": "12th Marksheet",
+      "quality": "phone",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "12th",
+        "board": "Maharashtra State Board",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_cbse10_clean",
+      "file": "board_cbse10_clean.png",
+      "document_type": "10th Marksheet",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "10th",
+        "board": "CBSE",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_cbse10_phone",
+      "file": "board_cbse10_phone.png",
+      "document_type": "10th Marksheet",
+      "quality": "phone",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "10th",
+        "board": "CBSE",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_cbse12_clean",
+      "file": "board_cbse12_clean.png",
+      "document_type": "12th Marksheet",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "12th",
+        "board": "CBSE",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_cbse12_phone",
+      "file": "board_cbse12_phone.png",
+      "document_type": "12th Marksheet",
+      "quality": "phone",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "12th",
+        "board": "CBSE",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_icse_clean",
+      "file": "board_icse_clean.png",
+      "document_type": "10th Marksheet",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "10th",
+        "board": "CISCE",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_icse_phone",
+      "file": "board_icse_phone.png",
+      "document_type": "10th Marksheet",
+      "quality": "phone",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "10th",
+        "board": "CISCE",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_isc_clean",
+      "file": "board_isc_clean.png",
+      "document_type": "12th Marksheet",
+      "quality": "clean",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "12th",
+        "board": "CISCE",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    },
+    {
+      "id": "board_isc_phone",
+      "file": "board_isc_phone.png",
+      "document_type": "12th Marksheet",
+      "quality": "phone",
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "father_name": "Suresh Example",
+        "mother_name": "Meera Example",
+        "dob": "2002-08-19",
+        "exam_year": "2020",
+        "exam_level": "12th",
+        "board": "CISCE",
+        "roll_number": "12345678",
+        "seat_number": "A123456",
+        "school_name": "Example Public School"
+      }
+    }
+  ]
+}

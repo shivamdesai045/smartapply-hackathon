@@ -14,3 +14,14 @@ backend/ml/data/real/
 backend/ml/data/feedback_raw/
 
 *.zip
+work/paddle-cache/
+
+# Local runtime state, browser profiles, experiment artifacts and secrets
+work/
+*.log
+*.db-*
+.env.*
+!.env.example
+*.pkl.bak
+*.pkl.candidate
+backend/ocr_fixtures/reports/

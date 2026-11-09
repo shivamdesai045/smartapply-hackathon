@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import OcrReadiness from '../components/OcrReadiness';
+import ApplicationReview from '../components/ApplicationReview';
+import {fetchVerificationReport} from '../lib/api';
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   fetchChecklistVariants,
@@ -12,6 +15,7 @@ import {
   postMismatchDecision,
   fetchCorrectionGuidancePair,
   rescanDocument,
+  resumeDocumentJob,
   skipRequirement,
   deleteSessionData,
   fetchCorrectionSteps,
@@ -152,42 +156,52 @@ function CorrectionCard({ guidance, issueKey, completedSteps = [], onToggleStep 
 }
 
 function OcrEditForm({ serviceName, sessionId, variant, requirement, reqData, onSaved }) {
-  const [name, setName] = useState(reqData.docName || "");
-  const [dob, setDob] = useState(reqData.docDob || "");
-  const [address, setAddress] = useState(reqData.docAddress || "");
-  const [docNumber, setDocNumber] = useState(reqData.docNumber || "");
+  const rich = reqData.doc_fields || reqData.docFields || {};
+  const type = (reqData.chosenOption || requirement || "").toLowerCase();
+  const academic = /marksheet|ssc|hsc|10th|12th|certificate.*passing/.test(type);
+  const keys = new Set(["name", "doc_number"]);
+  const add = (items) => items.split(" ").forEach(k => keys.add(k));
+  if (academic) add("father_name mother_name dob board exam_level exam_year roll_number seat_number certificate_number school_name issuing_authority issue_date");
+  else if (/bill|rent|bank|passbook/.test(type)) add("address pincode mobile_number issue_date issuing_authority");
+  else { add("father_name mother_name guardian_name dob gender");
+    if (!/pan/.test(type)) add("address pincode");
+    if (/aadhaar/.test(type)) add("mobile_number");
+    if (/licen[cs]e/.test(type)) add("vehicle_classes guardian_name issuing_authority issue_date expiry_date");
+    if (/passport|birth/.test(type)) add("place_of_birth");
+    if (/passport|voter|ration/.test(type)) add("spouse_name");
+    if (!/aadhaar|pan/.test(type)) add("issue_date expiry_date issuing_authority");
+  }
+  Object.entries(rich).forEach(([k,v]) => { if (v.value && k !== "document_type") keys.add(k); });
+  const legacy = {name:reqData.docName,dob:reqData.docDob,address:reqData.docAddress,doc_number:reqData.docNumber};
+  const [values, setValues] = useState(() => Object.fromEntries([...keys].map(k => {
+    const v = rich[k]?.value ?? legacy[k] ?? "";
+    return [k, typeof v === "object" ? v.number || "" : String(v)];
+  })));
+  const [changed, setChanged] = useState({});
   const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    setSaving(true);
+  const [error, setError] = useState("");
+  const label = k => k === "doc_number" ? "Document number" : k === "dob" ? "Date of birth (YYYY-MM-DD)" : k.replaceAll("_", " ");
+  const save = async () => {
+    setSaving(true); setError("");
     try {
-      await updateChecklistFields(serviceName, sessionId, variant, requirement, {
-        docName: name, docDob: dob, docAddress: address, docNumber: docNumber,
-      });
+      await updateChecklistFields(serviceName, sessionId, variant, requirement, {docFields:changed});
       onSaved();
-    } finally {
-      setSaving(false);
-    }
+    } catch (err) { setError(err.message || "Could not save corrections"); }
+    finally { setSaving(false); }
   };
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name"
-        className="text-sm border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-700 dark:text-white" />
-      <input value={dob} onChange={(e) => setDob(e.target.value)} placeholder="DOB (YYYY-MM-DD)"
-        className="text-sm border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-700 dark:text-white" />
-      <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address"
-        className="text-sm border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-700 dark:text-white" />
-      <input value={docNumber} onChange={(e) => setDocNumber(e.target.value)} placeholder="ID / Doc Number"
-        className="text-sm border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-700 dark:text-white" />
-      <button onClick={handleSave} disabled={saving}
-        className="sm:col-span-2 md:col-span-4 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded disabled:opacity-50 w-fit">
-        {saving ? "Saving..." : "Save correction"}
-      </button>
+  return <div className="mt-3 space-y-3">
+    <p className="text-xs text-gray-500">Correct the fields shown on this document. Only edited values are saved as confirmed.</p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {[...keys].map(k => <label key={k} className="text-xs capitalize text-gray-700 dark:text-gray-200">
+        {label(k)}
+        <input value={values[k] || ""} onChange={e => {setValues(v=>({...v,[k]:e.target.value}));setChanged(v=>({...v,[k]:e.target.value || null}));}}
+          placeholder="Not shown / not detected" className="mt-1 w-full text-sm border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-700 dark:text-white" />
+      </label>)}
     </div>
-  );
+    {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+    <button onClick={save} disabled={saving || !Object.keys(changed).length} className="bg-brand-600 text-white rounded px-4 py-2 disabled:opacity-50">{saving ? "Saving..." : "Save corrections"}</button>
+  </div>;
 }
-
 
 function SecureDocumentPreview({ fileUrl, alt }) {
   const { t } = useTranslation();
@@ -297,34 +311,75 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
   const [sideBySide, setSideBySide] = useState(false);
   const [warningDismissed, setWarningDismissed] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const documentRequest = useRef(null);
+  useEffect(() => () => documentRequest.current?.abort(), []);
+  const [ocrProgress, setOcrProgress] = useState("Reading document...");
   const [rescanning, setRescanning] = useState(false);
   const [skipping, setSkipping] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [lastOcr, setLastOcr] = useState(null);
   const [editingOcr, setEditingOcr] = useState(false);
+  const [pdfPassword, setPdfPassword] = useState("");
+  const isAadhaar = /aadh?aar|adhar/i.test(selectedOption || "");
+  const uploadedCallback = useRef(onUploaded);
+  uploadedCallback.current = onUploaded;
+  useEffect(() => {
+    if (!user) return;
+    const controller = new AbortController();
+    documentRequest.current = controller;
+    resumeDocumentJob(serviceName, sessionId, variant, reqData.requirement, progress => {
+      if (controller.signal.aborted) return;
+      setRescanning(true);
+      setOcrProgress(progress);
+    }, controller.signal).then(result => {
+      if (!result || controller.signal.aborted) return;
+      setLastOcr(result.extracted || result.ocrExtracted);
+      uploadedCallback.current();
+    }).catch(err => {
+      if (err.name !== "AbortError") setErrorMsg(err.message);
+    }).finally(() => {
+      if (documentRequest.current !== controller) return;
+      documentRequest.current = null;
+      setRescanning(false);
+      setOcrProgress("");
+    });
+    return () => controller.abort();
+  }, [serviceName, sessionId, variant, reqData.requirement, user?.id]);
+
 
   const isPhotoSig = reqData.compare === false || /photo|photograph|signature|thumb impression/i.test(reqData.requirement || "");
   const isSkipped = Boolean(reqData.skipped || reqData.chosenOption === "Not Applicable" || reqData.filePath === "SKIPPED");
 
   const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    if (files.length > (isAadhaar ? 2 : 1)) {
+      setErrorMsg("Select one document, or two photos for Aadhaar front and back.");
+      e.target.value = "";
+      return;
+    }
 
     if (!user) {
       e.target.value = "";
       openLoginModal("Please log in to upload and scan documents.");
       return;
     }
+    if (documentRequest.current) return;
+    documentRequest.current = new AbortController();
     setUploading(true);
     setErrorMsg(null);
     try {
-      const res = await uploadChecklistFile(serviceName, sessionId, variant, reqData.requirement, selectedOption, file);
+      const res = await uploadChecklistFile(serviceName, sessionId, variant, reqData.requirement, selectedOption, files, pdfPassword, setOcrProgress, documentRequest.current.signal);
       setLastOcr(res.extracted || res.ocrExtracted);
       onUploaded();
     } catch (err) {
-      setErrorMsg(err.message || "Upload failed");
+      if (err.name !== "AbortError") setErrorMsg(err.message || "Upload failed");
     } finally {
+      documentRequest.current = null;
+      setOcrProgress("");
       setUploading(false);
+      setPdfPassword("");
+      e.target.value = "";
     }
   };
 
@@ -333,17 +388,22 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
       openLoginModal("Please log in to re-scan documents.");
       return;
     }
+    if (documentRequest.current) return;
+    documentRequest.current = new AbortController();
     setRescanning(true);
     setErrorMsg(null);
     try {
-      const res = await rescanDocument(serviceName, sessionId, variant, reqData.requirement);
+      const res = await rescanDocument(serviceName, sessionId, variant, reqData.requirement, pdfPassword, setOcrProgress, documentRequest.current.signal);
       setLastOcr(res.extracted || res.ocrExtracted);
       setEditingOcr(false);
       onUploaded();
     } catch (err) {
-      setErrorMsg(err.message || "Re-scan failed");
+      if (err.name !== "AbortError") setErrorMsg(err.message || "Re-scan failed");
     } finally {
+      documentRequest.current = null;
+      setOcrProgress("");
       setRescanning(false);
+      setPdfPassword("");
     }
   };
 
@@ -482,7 +542,8 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
                   <button
                     type="button"
                     onClick={() => setSideBySide(!sideBySide)}
-                    className={`hidden lg:flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-semibold transition ${
+                    aria-pressed={sideBySide}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-semibold transition ${
                       sideBySide
                         ? "bg-brand-50 border-brand-400 text-brand-700 dark:bg-brand-950 dark:border-brand-700 dark:text-brand-300"
                         : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 text-gray-700 dark:text-gray-300"
@@ -510,12 +571,28 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
           {reqData.options.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
         </select>
 
+        {isAadhaar && (
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            English text extraction: use upright, readable images. Select both front and back photos together, or one PDF/image containing both sides. Either side can come first.
+          </p>
+        )}
+        <label className="block text-xs text-gray-600 dark:text-gray-300">
+          PDF password (only if protected; enter before uploading or re-scanning)
+          <input type="password" value={pdfPassword} onChange={(event) => setPdfPassword(event.target.value)}
+            autoComplete="off" className="mt-1 block rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2" />
+        </label>
+        {(lastOcr?.doc_meta?.aadhaar_review_reasons || reqData.aadhaarReviewReasons || []).map((reason) => (
+          <p key={reason} role="status" className="text-sm text-amber-700 dark:text-amber-300">{reason}</p>
+        ))}
         <div className="flex items-center gap-2 flex-wrap">
           <label className="cursor-pointer inline-block text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded px-4 py-2 transition shadow-sm">
-            {uploading ? t("reading_document") : reqData.uploaded ? t("replace_file") : t("upload_file")}
-            <input type="file" className="hidden" disabled={uploading} onChange={handleFileChange} />
+            {uploading || rescanning ? ocrProgress : reqData.uploaded ? t("replace_file") : t("upload_file")}
+            <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp,.tiff" multiple={isAadhaar} disabled={uploading || rescanning} onChange={handleFileChange} />
           </label>
 
+          {(uploading || rescanning) && ocrProgress.startsWith("Queued") && (
+            <button type="button" onClick={() => documentRequest.current?.abort()} className="text-sm underline">Cancel queued upload</button>
+          )}
           {reqData.skippable && !reqData.uploaded && (
             <button
               type="button"
@@ -590,8 +667,8 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
 
         {/* Desktop Side-by-Side Review Pane */}
         {sideBySide && viewUrl && !isPhotoSig && (
-          <div className="hidden lg:grid grid-cols-2 gap-4 p-3 bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-gray-200 dark:border-gray-700">
-            <div className="h-64 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-900/10 flex items-center justify-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-3 bg-gray-50 dark:bg-gray-900/60 rounded-xl border border-gray-200 dark:border-gray-700">
+            <div className="h-[70vh] min-h-96 rounded-lg overflow-auto border border-gray-200 dark:border-gray-700 bg-gray-900/10">
               <SecureDocumentPreview fileUrl={viewUrl} alt={reqData.chosenOption} />
             </div>
             <div className="flex flex-col justify-center space-y-2 text-xs">
@@ -602,6 +679,13 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
                   <p><strong>DOB:</strong> {ocrInfo.dob || "(Not detected)"}</p>
                   <p><strong>Address:</strong> {ocrInfo.address || "(Not detected)"}</p>
                   {ocrInfo.doc_number && <p><strong>ID Number:</strong> {maskAadhaar(ocrInfo.doc_number.number)}</p>}
+                  {Object.entries(reqData.doc_fields || lastOcr?.doc_fields || {}).filter(([field]) => !["name", "dob", "address", "doc_number"].includes(field)).map(([field, entry]) => (
+                    <div key={field} className="border-t py-2">
+                      <strong className="capitalize">{field.replaceAll("_", " ")}: </strong>
+                      <span>{entry.value || "Not detected"}</span>
+                      {entry.value && <span className="block text-xs">{entry.user_verified ? "Confirmed by you" : entry.needs_review ? "Please confirm this value" : `OCR confidence: ${Math.round(entry.confidence * 100)}%`}</span>}
+                    </div>
+                  ))}
                 </div>
               )}
               <button
@@ -632,6 +716,7 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
                     )}
                   </span>
                 )}
+                {isAadhaar && !ocrInfo.dob && <span className="mr-2 text-amber-700 dark:text-amber-300">DOB: Not detected — check the front side or correct it manually.</span>}
                 {ocrInfo.dob && (
                   <span className="mr-2 inline-flex items-center gap-1">
                     <strong>DOB:</strong> {ocrInfo.dob}
@@ -674,10 +759,10 @@ function RequirementRow({ serviceName, sessionId, variant, reqData, onUploaded, 
                 <span className="text-gray-300 dark:text-gray-600">|</span>
                 <button
                   onClick={handleRescan}
-                  disabled={rescanning}
+                  disabled={rescanning || uploading}
                   className="text-blue-600 dark:text-blue-400 hover:underline"
                 >
-                  {rescanning ? "Re-scanning..." : "Re-scan"}
+                  {rescanning ? ocrProgress : "Re-scan"}
                 </button>
               </span>
             )}
@@ -900,6 +985,10 @@ function SelfReportFallback({ availableDocs, onClose }) {
 }
 
 function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
+  const [applicationReport,setApplicationReport]=useState(null);
+  const [reviewError,setReviewError]=useState('');
+  const openReview=async()=>{try{setReviewError('');setApplicationReport(await fetchVerificationReport(serviceName,variant));}catch(e){setReviewError(e.message);}};
+
   const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -979,6 +1068,7 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
     }
   };
 
+  if(applicationReport) return <ApplicationReview report={applicationReport} serviceName={serviceName} onBack={()=>setApplicationReport(null)} />;
   return (
     <div>
       <button onClick={onBack} className="text-sm text-brand-600 dark:text-brand-400 hover:underline mb-4 flex items-center gap-1">
@@ -987,6 +1077,8 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
       <h1 className="text-2xl font-bold text-brand-700 dark:text-brand-400 mb-1">Mismatch Checker</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-4">Comparing details extracted from your uploaded documents field by field.</p>
 
+      <button onClick={openReview} disabled={loading} className="mb-4 rounded bg-brand-600 text-white px-5 py-3">Review details & apply online</button>
+      {reviewError&&<p role="alert">{reviewError}</p>}
       {/* Notice / Legal OCR Disclaimer */}
       <div className="mb-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 flex items-start gap-3">
         <span className="text-blue-600 dark:text-blue-400 text-lg">ℹ️</span>
@@ -1069,7 +1161,7 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
 
               {data?.servicePortal && isVerified && (
                 <a
-                  href={data.servicePortal.url}
+                  href="#application-review" onClick={(e)=>{e.preventDefault();openReview();}}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-1.5"
@@ -1171,7 +1263,7 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                 </p>
                 {data?.servicePortal && (
                   <a
-                    href={data.servicePortal.url}
+                    href="#application-review" onClick={(e)=>{e.preventDefault();openReview();}}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg shadow transition"
@@ -1255,7 +1347,7 @@ function MismatchCheckerStep({ serviceName, sessionId, variant, onBack }) {
                   </p>
                 </div>
                 <a
-                  href={data.servicePortal.url}
+                  href="#application-review" onClick={(e)=>{e.preventDefault();openReview();}}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium text-xs shadow transition-colors"
@@ -1332,70 +1424,44 @@ function Checklist() {
     };
   }, [serviceName]);
 
-  // 2. Fetch requirement progress for the chosen variant
-  const loadProgress = useCallback(() => {
+  // Refresh data without unmounting rows that own ongoing uploads/polling.
+  const progressGeneration = useRef(0);
+  const [refreshError, setRefreshError] = useState(null);
+  const loadProgress = useCallback(async ({ background = false } = {}) => {
     if (!serviceName || !selectedVariant) return;
-    setLoading(true);
-    setError(null);
-    let isCancelled = false;
-
-    if (!user) {
-      fetchChecklist(serviceName, selectedVariant)
-        .then((data) => {
-          if (isCancelled) return;
-          const reqs = (data.requirements || []).map((r) => ({
-            requirement: r.name,
-            options: r.options,
-            notes: r.notes,
-            subject: r.subject || "applicant",
-            compare: r.compare !== false,
-            skippable: r.skippable || false,
-            skipped: false,
-            chosenOption: r.options[0],
-            uploaded: false,
-          }));
-          setChecklistData({
-            service: serviceName,
-            variant: selectedVariant,
-            requirements: reqs,
-            uploadedCount: 0,
-            comparableCount: 0,
-            totalCount: reqs.length,
-            complete: false,
-            servicePortal: data.servicePortal || null,
-          });
-        })
-        .catch((err) => {
-          if (isCancelled) return;
-          console.error("Failed to load checklist:", err);
-          setError(err.message || "Unable to load checklist requirements.");
-        })
-        .finally(() => {
-          if (!isCancelled) setLoading(false);
-        });
-    } else {
-      fetchChecklistStatus(serviceName, sessionId, selectedVariant)
-        .then((data) => {
-          if (isCancelled) return;
-          setChecklistData(data);
-        })
-        .catch((err) => {
-          if (isCancelled) return;
-          console.error("Failed to load checklist status:", err);
-          setError(err.message || "Unable to load checklist requirements.");
-        })
-        .finally(() => {
-          if (!isCancelled) setLoading(false);
-        });
+    const generation = ++progressGeneration.current;
+    if (!background) { setLoading(true); setError(null); }
+    setRefreshError(null);
+    try {
+      let data;
+      if (user) {
+        data = await fetchChecklistStatus(serviceName, sessionId, selectedVariant);
+      } else {
+        const checklist = await fetchChecklist(serviceName, selectedVariant);
+        const requirements = (checklist.requirements || []).map(r => ({
+          requirement: r.name, options: r.options, notes: r.notes,
+          subject: r.subject || "applicant", compare: r.compare !== false,
+          skippable: r.skippable || false, skipped: false,
+          chosenOption: r.options[0], uploaded: false,
+        }));
+        data = { service: serviceName, variant: selectedVariant, requirements,
+          uploadedCount: 0, comparableCount: 0, totalCount: requirements.length,
+          complete: false, servicePortal: checklist.servicePortal || null };
+      }
+      if (generation === progressGeneration.current) setChecklistData(data);
+    } catch (err) {
+      if (generation === progressGeneration.current) {
+        if (background) setRefreshError("Could not refresh progress. Your other document jobs are still running.");
+        else setError(err.message || "Unable to load checklist requirements.");
+      }
+    } finally {
+      if (generation === progressGeneration.current) setLoading(false);
     }
-
-    return () => {
-      isCancelled = true;
-    };
   }, [serviceName, sessionId, selectedVariant, user]);
-
+  const refreshProgress = useCallback(() => loadProgress({ background: true }), [loadProgress]);
   useEffect(() => {
     loadProgress();
+    return () => { progressGeneration.current++; };
   }, [loadProgress]);
 
   const handleClearSession = async () => {
@@ -1457,6 +1523,7 @@ function Checklist() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             Upload your documents below to verify completeness and automatically check for discrepancies across records.
           </p>
+          <OcrReadiness />
           {checklistData?.servicePortal && (
             <div className="mt-1.5">
               <a
@@ -1585,16 +1652,17 @@ function Checklist() {
         <MissingDocumentHelp requirements={reqList} />
       )}
 
+      {refreshError && <p role="status" className="text-amber-700">{refreshError}</p>}
       {!loading && !error && reqList.length > 0 && (
         <div className="space-y-4">
           {reqList.map((req, idx) => (
             <RequirementRow
-              key={req.requirement || idx}
+              key={`${serviceName}:${sessionId}:${selectedVariant}:${user?.id || "guest"}:${req.requirement || idx}`}
               serviceName={serviceName}
               sessionId={sessionId}
               variant={selectedVariant}
               reqData={req}
-              onUploaded={loadProgress}
+              onUploaded={refreshProgress}
               user={user}
             />
           ))}

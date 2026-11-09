@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sahayak AutoFill",
-  "version": "0.2.0",
+  "version": "0.4.1",
   "description": "Save your corrected details once (encrypted with your passphrase), then fill simple form fields on a page. You review everything and submit yourself.",
   "action": {
     "default_title": "Open Sahayak AutoFill",
@@ -20,8 +20,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start"
     }
   ],

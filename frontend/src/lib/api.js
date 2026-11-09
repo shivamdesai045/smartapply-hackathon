@@ -22,18 +22,35 @@ async function request(url, options = {}) {
     },
   };
 
-  const res = await fetch(url, opts);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    if (res.status === 401 && body.code === "LOGIN_REQUIRED") {
-      handleLoginRequired(body.error);
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  options.signal?.addEventListener("abort", cancel, { once: true });
+  if (options.signal?.aborted) controller.abort();
+  const timer = setTimeout(cancel, 230000);
+  try {
+    const res = await fetch(url, { ...opts, signal: controller.signal });
+    const body = await res.json().catch(error => {
+      if (error.name === "AbortError") throw error;
+      if (res.ok) throw error;
+      return {};
+    });
+    if (!res.ok) {
+      if (res.status === 401 && body.code === "LOGIN_REQUIRED") handleLoginRequired(body.error);
+      const err = new Error(body.error || `Request failed with status ${res.status}`);
+      err.status = res.status;
+      err.code = body.code;
+      throw err;
     }
-    const err = new Error(body.error || `Request failed with status ${res.status}`);
-    err.status = res.status;
-    err.code = body.code;
-    throw err;
+    return body;
+  } catch (error) {
+    if (error.name === "AbortError" && !options.signal?.aborted) {
+      throw new Error("Document processing timed out. Please try one clear image or a two-page PDF.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener("abort", cancel);
   }
-  return res.json();
 }
 
 export async function fetchSession() {
@@ -69,39 +86,135 @@ export async function fetchChecklistStatus(serviceName, sessionId, variant) {
   return request(url);
 }
 
+// Serialize document reads on this memory-limited CPU; failed jobs never stall the queue.
+const waitingDocuments = [];
+let activeDocument = null;
+function updateQueuePositions() {
+  waitingDocuments.forEach((entry, i) => entry.onProgress?.(`Queued — ${i + (activeDocument ? 1 : 0)} document(s) ahead`));
+}
+function runNextDocument() {
+  if (activeDocument || !waitingDocuments.length) return;
+  const entry = waitingDocuments.shift();
+  activeDocument = entry;
+  entry.onProgress?.("Reading document...");
+  updateQueuePositions();
+  const started = Date.now();
+  const ticker = setInterval(() => entry.onProgress?.(`Reading document — ${Math.floor((Date.now() - started) / 1000)}s`), 1000);
+  Promise.resolve().then(entry.task).then(entry.resolve, entry.reject).finally(() => {
+    clearInterval(ticker);
+    entry.signal?.removeEventListener("abort", entry.cancel);
+    activeDocument = null;
+    runNextDocument();
+    updateQueuePositions();
+  });
+}
+function queueDocument(task, onProgress, signal) {
+  if (signal?.aborted) return Promise.reject(new DOMException("Cancelled", "AbortError"));
+  return new Promise((resolve, reject) => {
+    const entry = { task, onProgress, signal, resolve, reject };
+    entry.cancel = () => {
+      const index = waitingDocuments.indexOf(entry);
+      if (index < 0) return; // Active requests observe the same signal in request().
+      waitingDocuments.splice(index, 1);
+      signal.removeEventListener("abort", entry.cancel);
+      reject(new DOMException("Cancelled", "AbortError"));
+      updateQueuePositions();
+    };
+    signal?.addEventListener("abort", entry.cancel, { once: true });
+    waitingDocuments.push(entry);
+    onProgress?.(activeDocument ? `Queued — ${waitingDocuments.length} document(s) ahead` : "Starting document...");
+    runNextDocument();
+  });
+}
+
+async function waitForDocumentJob(accepted, onProgress, signal) {
+  if (!accepted.job_id) return accepted; // Compatible with synchronous servers.
+  const url = `${API_BASE}/api/ocr/jobs/${encodeURIComponent(accepted.job_id)}`;
+  const cancel = () => { request(url, { method: "DELETE" }).catch(() => {}); };
+  signal?.addEventListener("abort", cancel, { once: true });
+  const delay = () => new Promise((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(new DOMException("Cancelled", "AbortError"));
+    };
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, 1000);
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
+  });
+  try {
+    if (signal?.aborted) { cancel(); throw new DOMException("Cancelled", "AbortError"); }
+    const deadline = Date.now() + 15 * 60 * 1000;
+    while (Date.now() < deadline) {
+      const status = await request(url, { signal });
+      if (status.status === "completed") return status.result;
+      if (status.status === "failed") {
+        const error = new Error(status.result?.error || "Document processing failed.");
+        error.code = status.result?.code;
+        throw error;
+      }
+      if (status.status === "cancelled") throw new DOMException("Cancelled", "AbortError");
+      onProgress?.(status.status === "queued"
+        ? `Queued — ${status.ahead} document(s) ahead`
+        : `Reading document — ${status.processing_seconds ?? status.elapsed_seconds}s${status.queue_seconds >= 1 ? ` (waited ${status.queue_seconds}s in queue)` : ""}`);
+      await delay();
+    }
+    cancel();
+    throw new Error("Document processing is taking too long. Please check the backend and retry.");
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+  }
+}
+
+export async function resumeDocumentJob(service, session_id, variant, requirement, onProgress, signal) {
+  const query = new URLSearchParams({ service, session_id, variant, requirement });
+  const active = await request(`${API_BASE}/api/ocr/jobs/active?${query}`, { signal });
+  return active.job_id ? waitForDocumentJob(active, onProgress, signal) : null;
+}
+
 export async function uploadChecklistFile(
   serviceName,
   sessionId,
   variant,
   requirement,
   chosenOption,
-  file
+  file,
+  password = "",
+  onProgress,
+  signal
 ) {
   const formData = new FormData();
   formData.append("session_id", sessionId);
   formData.append("variant", variant);
   formData.append("requirement", requirement);
   formData.append("chosen_option", chosenOption);
-  formData.append("file", file);
+  for (const selectedFile of (Array.isArray(file) ? file : [file])) {
+    formData.append("file", selectedFile);
+  }
+  if (password) formData.append("password", password);
 
   const url = `${API_BASE}/api/checklist/${encodeURIComponent(serviceName)}/upload`;
-  return request(url, {
+  return queueDocument(() => request(url, {
     method: "POST",
+    headers: { Prefer: "respond-async" },
     body: formData,
-  });
+    signal,
+  }), onProgress, signal).then(result => waitForDocumentJob(result, onProgress, signal));
 }
 
-export async function rescanDocument(serviceName, sessionId, variant, requirement) {
+export async function rescanDocument(serviceName, sessionId, variant, requirement, password = "", onProgress, signal) {
   const url = `${API_BASE}/api/checklist/${encodeURIComponent(serviceName)}/rescan`;
-  return request(url, {
+  return queueDocument(() => request(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    signal,
+    headers: { "Content-Type": "application/json", Prefer: "respond-async" },
     body: JSON.stringify({
       session_id: sessionId,
       variant,
       requirement,
+      ...(password ? { password } : {}),
     }),
-  });
+  }), onProgress, signal).then(result => waitForDocumentJob(result, onProgress, signal));
 }
 
 export async function skipRequirement(serviceName, sessionId, variant, requirement, skipped = true) {
@@ -123,7 +236,7 @@ export async function updateChecklistFields(
   sessionId,
   variant,
   requirement,
-  { docName, docDob, docAddress, docNumber }
+  { docName, docDob, docAddress, docNumber, docFields }
 ) {
   const url = `${API_BASE}/api/checklist/${encodeURIComponent(serviceName)}/update-fields`;
   return request(url, {
@@ -133,10 +246,11 @@ export async function updateChecklistFields(
       session_id: sessionId,
       variant,
       requirement,
-      doc_name: docName || null,
-      doc_dob: docDob || null,
-      doc_address: docAddress || null,
-      doc_number: docNumber || null,
+      ...(docFields ? {doc_fields: docFields} : {}),
+      doc_name: docFields ? undefined : docName || null,
+      doc_dob: docFields ? undefined : docDob || null,
+      doc_address: docFields ? undefined : docAddress || null,
+      doc_number: docFields ? undefined : docNumber || null,
     }),
   });
 }
@@ -310,4 +424,10 @@ export async function fetchMe() {
   } catch {
     return null;
   }
+}
+
+export function fetchReviewedIds(service,variant='adult') {
+ return request(`${API_BASE}/api/checklist/${encodeURIComponent(service)}/reviewed-ids`,{
+  method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({variant,confirmed:true})
+ });
 }

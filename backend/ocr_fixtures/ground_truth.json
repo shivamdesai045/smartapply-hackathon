@@ -1,0 +1,401 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "description": "Plain labelled synthetic text sheets, not replicas. Phone fixtures simulate downsampling, blur, darkness and skew. No real or consented scans were supplied. PAN deliberately uses invalid entity Z. Masked Aadhaar has no real full number.",
+  "limitations": [
+    "Small deterministic development set; not held out",
+    "English only; not representative of real Hindi/Marathi layouts",
+    "Phone images are simulated, not camera captures",
+    "No MRZ, holograms, seals, complex background, e-Aadhaar encryption or multipage layouts in this extraction accuracy set"
+  ],
+  "fixtures": [
+    {
+      "id": "aadhaar_clean",
+      "file": "aadhaar_clean.png",
+      "document_type": "Aadhaar Card",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "gender": "Male",
+        "address": "Flat 12, Test Nagar, Pune, Maharashtra 411001",
+        "pincode": "411001",
+        "doc_number": "XXXX XXXX 1234",
+        "document_type": "Aadhaar Card"
+      }
+    },
+    {
+      "id": "aadhaar_phone",
+      "file": "aadhaar_phone.png",
+      "document_type": "Aadhaar Card",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "gender": "Male",
+        "address": "Flat 12, Test Nagar, Pune, Maharashtra 411001",
+        "pincode": "411001",
+        "doc_number": "XXXX XXXX 1234",
+        "document_type": "Aadhaar Card"
+      }
+    },
+    {
+      "id": "pan_clean",
+      "file": "pan_clean.png",
+      "document_type": "PAN Card",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "doc_number": "ABCZE1234F",
+        "document_type": "PAN Card"
+      }
+    },
+    {
+      "id": "pan_phone",
+      "file": "pan_phone.png",
+      "document_type": "PAN Card",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "doc_number": "ABCZE1234F",
+        "document_type": "PAN Card"
+      }
+    },
+    {
+      "id": "passport_clean",
+      "file": "passport_clean.png",
+      "document_type": "Passport",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "gender": "Male",
+        "place_of_birth": "Pune",
+        "address": "Flat 12, Test Nagar, Pune, Maharashtra 411001",
+        "pincode": "411001",
+        "doc_number": "Z0000000",
+        "issue_date": "2024-06-01",
+        "expiry_date": "2034-05-31",
+        "document_type": "Passport"
+      }
+    },
+    {
+      "id": "passport_phone",
+      "file": "passport_phone.png",
+      "document_type": "Passport",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "gender": "Male",
+        "place_of_birth": "Pune",
+        "address": "Flat 12, Test Nagar, Pune, Maharashtra 411001",
+        "pincode": "411001",
+        "doc_number": "Z0000000",
+        "issue_date": "2024-06-01",
+        "expiry_date": "2034-05-31",
+        "document_type": "Passport"
+      }
+    },
+    {
+      "id": "voter_clean",
+      "file": "voter_clean.png",
+      "document_type": "Voter ID Card",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "gender": "Male",
+        "address": "Flat 12, Test Nagar, Pune, Maharashtra 411001",
+        "pincode": "411001",
+        "doc_number": "TST0000000",
+        "document_type": "Voter ID Card"
+      }
+    },
+    {
+      "id": "voter_phone",
+      "file": "voter_phone.png",
+      "document_type": "Voter ID Card",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "gender": "Male",
+        "address": "Flat 12, Test Nagar, Pune, Maharashtra 411001",
+        "pincode": "411001",
+        "doc_number": "TST0000000",
+        "document_type": "Voter ID Card"
+      }
+    },
+    {
+      "id": "birth_clean",
+      "file": "birth_clean.png",
+      "document_type": "Birth Certificate",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "gender": "Male",
+        "place_of_birth": "Pune",
+        "issue_date": "2002-09-01",
+        "issuing_authority": "Municipal Registrar",
+        "document_type": "Birth Certificate"
+      }
+    },
+    {
+      "id": "birth_phone",
+      "file": "birth_phone.png",
+      "document_type": "Birth Certificate",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "gender": "Male",
+        "place_of_birth": "Pune",
+        "issue_date": "2002-09-01",
+        "issuing_authority": "Municipal Registrar",
+        "document_type": "Birth Certificate"
+      }
+    },
+    {
+      "id": "10th_maharashtra_board_clean",
+      "file": "10th_maharashtra_board_clean.png",
+      "document_type": "10th Marksheet",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "10th",
+        "exam_year": "2018",
+        "document_type": "10th Marksheet"
+      }
+    },
+    {
+      "id": "10th_maharashtra_board_phone",
+      "file": "10th_maharashtra_board_phone.png",
+      "document_type": "10th Marksheet",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "10th",
+        "exam_year": "2018",
+        "document_type": "10th Marksheet"
+      }
+    },
+    {
+      "id": "10th_cbse_clean",
+      "file": "10th_cbse_clean.png",
+      "document_type": "10th Marksheet",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "10th",
+        "exam_year": "2018",
+        "document_type": "10th Marksheet"
+      }
+    },
+    {
+      "id": "10th_cbse_phone",
+      "file": "10th_cbse_phone.png",
+      "document_type": "10th Marksheet",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "10th",
+        "exam_year": "2018",
+        "document_type": "10th Marksheet"
+      }
+    },
+    {
+      "id": "10th_icse_clean",
+      "file": "10th_icse_clean.png",
+      "document_type": "10th Marksheet",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "10th",
+        "exam_year": "2018",
+        "document_type": "10th Marksheet"
+      }
+    },
+    {
+      "id": "10th_icse_phone",
+      "file": "10th_icse_phone.png",
+      "document_type": "10th Marksheet",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "10th",
+        "exam_year": "2018",
+        "document_type": "10th Marksheet"
+      }
+    },
+    {
+      "id": "12th_maharashtra_board_clean",
+      "file": "12th_maharashtra_board_clean.png",
+      "document_type": "12th Marksheet",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "12th",
+        "exam_year": "2020",
+        "document_type": "12th Marksheet"
+      }
+    },
+    {
+      "id": "12th_maharashtra_board_phone",
+      "file": "12th_maharashtra_board_phone.png",
+      "document_type": "12th Marksheet",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "12th",
+        "exam_year": "2020",
+        "document_type": "12th Marksheet"
+      }
+    },
+    {
+      "id": "12th_cbse_clean",
+      "file": "12th_cbse_clean.png",
+      "document_type": "12th Marksheet",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "12th",
+        "exam_year": "2020",
+        "document_type": "12th Marksheet"
+      }
+    },
+    {
+      "id": "12th_cbse_phone",
+      "file": "12th_cbse_phone.png",
+      "document_type": "12th Marksheet",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "12th",
+        "exam_year": "2020",
+        "document_type": "12th Marksheet"
+      }
+    },
+    {
+      "id": "12th_icse_clean",
+      "file": "12th_icse_clean.png",
+      "document_type": "12th Marksheet",
+      "quality": "clean",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "12th",
+        "exam_year": "2020",
+        "document_type": "12th Marksheet"
+      }
+    },
+    {
+      "id": "12th_icse_phone",
+      "file": "12th_icse_phone.png",
+      "document_type": "12th Marksheet",
+      "quality": "phone",
+      "synthetic": true,
+      "pages": 1,
+      "expected": {
+        "name": "Aarav Example",
+        "dob": "2002-08-19",
+        "father_name": "Suresh Example",
+        "mother_name": "Meena Example",
+        "exam_level": "12th",
+        "exam_year": "2020",
+        "document_type": "12th Marksheet"
+      }
+    }
+  ]
+}

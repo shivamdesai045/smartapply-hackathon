@@ -83,6 +83,7 @@ export function deriveCorrectedProfile(report) {
   let district = "";
   let city = "";
   let pin = "";
+  let gender = "";
 
   const docMap = {};
   documents.forEach((d) => {
@@ -91,6 +92,21 @@ export function deriveCorrectedProfile(report) {
     }
   });
 
+  // Map confirmed structured values into the existing autofill profile contract.
+  const confirmed = (doc, key) => {
+    const entry = doc.doc_fields?.[key];
+    return entry?.user_verified && entry.value ? String(entry.value).trim() : "";
+  };
+  for (const doc of documents) {
+    fullName ||= confirmed(doc, "name");
+    dob ||= confirmed(doc, "dob");
+    address ||= confirmed(doc, "address");
+    gender ||= confirmed(doc, "gender");
+    fatherName ||= confirmed(doc, "father_name");
+    motherName ||= confirmed(doc, "mother_name");
+    mobile ||= confirmed(doc, "mobile_number");
+    pin ||= confirmed(doc, "pincode");
+  }
   // Base values from first available document
   for (const doc of documents) {
     if (doc.docName && !fullName) fullName = doc.docName.trim();
@@ -105,7 +121,7 @@ export function deriveCorrectedProfile(report) {
   }
 
   if (!fatherName && address) {
-    const parentMatch = address.match(/(?:S\/O|C\/O|Father(?:'s)?\s*Name)\s*[:\-]?\s*([A-Za-z ]+?)(?:,|$|\n)/i);
+    const parentMatch = address.match(/(?:S\/O|D\/O|Father(?:'s)?\s*Name)\s*[:\-]?\s*([A-Za-z ]+?)(?:,|$|\n)/i);
     if (parentMatch && parentMatch[1]) {
       fatherName = parentMatch[1].trim();
     }
@@ -133,7 +149,7 @@ export function deriveCorrectedProfile(report) {
     if (parsed.city) city = parsed.city;
     if (parsed.district) district = parsed.district;
     if (parsed.state) state = parsed.state;
-    if (parsed.pin) pin = parsed.pin;
+    if (!pin && parsed.pin) pin = parsed.pin;
   }
 
   const profile = {
@@ -141,7 +157,7 @@ export function deriveCorrectedProfile(report) {
     fatherName,
     motherName,
     dob,
-    gender: "",
+    gender: gender === "Transgender" ? "Other" : gender,
     mobile,
     email,
     address,

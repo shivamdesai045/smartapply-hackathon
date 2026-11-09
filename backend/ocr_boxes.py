@@ -6,7 +6,7 @@ Provides word-level and line-level bounding boxes with confidence scores:
 - High-quality 300 DPI rasterization and adaptive preprocessing for scanned documents.
 - Preprocessing: Deskew, Denoise, Otsu adaptive threshold, upscale small images.
 - Multi-variant confidence evaluation: selects the variant with highest mean confidence.
-- Multi-lingual OCR: automatically discovers eng+hin+mar if installed; falls back to eng.
+- English-only OCR; other script packs are not selected.
 - Optional EasyOCR support via OCR_ENGINE=easyocr with graceful fallback to Tesseract.
 - Normalized coordinates [x0, y0, x1, y1] in range [0.0, 1.0].
 """
@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import logging
+import time
 from datetime import datetime
 import pytesseract
 from PIL import Image, ImageOps, ImageFilter, ImageEnhance
@@ -58,20 +59,7 @@ def check_missing_languages(verbose=False):
     return missing
 
 def get_ocr_language_string():
-    """
-    Returns '+'-separated languages string.
-    Uses 'eng+hin+mar' when installed.
-    Otherwise falls back to 'eng' and logs a warning with the tessdata install path.
-    Never logs document content.
-    """
-    installed = get_available_tesseract_languages()
-    missing = check_missing_languages(verbose=True)
-    desired = ["eng", "hin", "mar"]
-    available = [l for l in desired if l in installed]
-    if "eng" in available and len(available) == 3:
-        return "eng+hin+mar"
-    elif available:
-        return "+".join(available)
+    """This deployment recognizes English text only, even if other packs exist."""
     return "eng"
 
 # --------------------------------------------------------------------------- #
@@ -105,10 +93,28 @@ def compute_otsu_threshold(gray_img):
 def deskew_image(img):
     """Detects 90/180/270 orientation using Tesseract OSD and rotates upright."""
     try:
-        osd = pytesseract.image_to_osd(img, config="--psm 0 -c min_characters_to_try=15", output_type=pytesseract.Output.DICT)
+        osd = pytesseract.image_to_osd(img, config="--psm 0 -c min_characters_to_try=15", output_type=pytesseract.Output.DICT, timeout=1.5)
         rotate_angle = osd.get("rotate", 0)
         if rotate_angle in (90, 180, 270):
             return img.rotate(360 - rotate_angle, expand=True)
+    except Exception:
+        pass
+    # Optional OpenCV fine deskew, with conservative correction bounds. No dependency
+    # download or document network access is performed by the OCR process.
+    try:
+        import cv2
+        import numpy as np
+        gray = np.asarray(ImageOps.grayscale(img))
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        coordinates = np.column_stack(np.where(binary > 0))[:, ::-1].astype('float32')
+        if len(coordinates) > 100:
+            angle = cv2.minAreaRect(coordinates)[-1]
+            if angle > 45:
+                angle -= 90
+            if .3 < abs(angle) <= 7:
+                return img.rotate(angle, expand=True, fillcolor='white')
+    except ImportError:
+        pass
     except Exception:
         pass
     return img
@@ -199,7 +205,9 @@ def extract_boxes_from_tesseract_data(data, width, height):
         }
         words.append(word_obj)
 
-        line_key = (block_num, line_num)
+        # Tesseract restarts line numbers for every paragraph within a block.
+        # Omitting paragraph identity interleaves unrelated rows by x coordinate.
+        line_key = (block_num, data.get("par_num", [0] * n_boxes)[i], line_num)
         lines_map.setdefault(line_key, []).append(word_obj)
 
     # Build sorted lines
@@ -243,33 +251,48 @@ def ocr_image_with_best_variant(img, lang=None):
     Applies deskew and upscale, evaluates candidate preprocessing variants,
     and returns OCR output for the variant with the highest mean confidence.
     """
+    started = time.monotonic()
+    budget = max(1.0, float(os.getenv("OCR_PAGE_BUDGET_SECONDS", "7.5")))
     if lang is None:
         lang = get_ocr_language_string()
 
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    # Bound preprocessing cost for high-resolution scans embedded in PDFs.
+    img.thumbnail((2400, 2400), Image.Resampling.LANCZOS)
     upright = deskew_image(img)
     scaled = upscale_small_image(upright)
     w, h = scaled.size
 
     variants = generate_preprocessing_variants(scaled)
+    # Preprocessing must not consume the entire Tesseract execution allowance.
+    started = time.monotonic()
 
     best_result = None
     best_conf = -1.0
     best_variant_name = "default"
+    passes = []
 
     for var_name, var_img in variants:
+        remaining = budget - (time.monotonic() - started)
+        if remaining <= .2:
+            break
         try:
             data = pytesseract.image_to_data(
                 var_img,
                 output_type=pytesseract.Output.DICT,
                 lang=lang,
-                config="--dpi 300 --psm 6"
+                config="--dpi 300 --psm 6", timeout=max(.2, remaining)
             )
             res = extract_boxes_from_tesseract_data(data, w, h)
+            passes.append({"text": res["text"], "mean_confidence": res["mean_confidence"], "variant": var_name})
             # Require at least 2 words to consider a valid confidence score
             if len(res["words"]) >= 2 and res["mean_confidence"] > best_conf:
                 best_conf = res["mean_confidence"]
                 best_result = res
                 best_variant_name = var_name
+            # Retain two independent passes for voting; use more only when uncertain.
+            if len(passes) >= 2 and best_conf >= 88 and passes[-1]["text"] == passes[-2]["text"]:
+                break
         except Exception:
             continue
 
@@ -278,7 +301,7 @@ def ocr_image_with_best_variant(img, lang=None):
         gray = ImageOps.grayscale(scaled)
         try:
             data = pytesseract.image_to_data(
-                gray, output_type=pytesseract.Output.DICT, lang=lang, config="--dpi 300"
+                gray, output_type=pytesseract.Output.DICT, lang=lang, config="--dpi 300", timeout=max(.2, budget - (time.monotonic() - started))
             )
             best_result = extract_boxes_from_tesseract_data(data, w, h)
             best_variant_name = "fallback_grayscale"
@@ -289,129 +312,81 @@ def ocr_image_with_best_variant(img, lang=None):
             }
 
     best_result["selected_preprocessing"] = best_variant_name
+    best_result["passes"] = passes
+    best_result["budget_exceeded"] = time.monotonic() - started >= budget
     return best_result
 
 # --------------------------------------------------------------------------- #
 # PyMuPDF PDF Text & Box Extraction
 # --------------------------------------------------------------------------- #
 
-def extract_pdf_with_boxes(file_path):
-    """
-    Extracts text and word bounding boxes from PDF:
-    - Uses digital text if present.
-    - If scanned or empty, rasterizes at 300 DPI and runs image OCR with boxes.
-    """
-    try:
-        doc = fitz.open(file_path)
-    except Exception as e:
-        logger.error(f"Failed to open PDF: {e}")
-        return {"text": "", "words": [], "lines": [], "mean_confidence": 0.0, "page_count": 0}
-
-    all_words = []
-    all_lines = []
-    total_text = []
-    is_digital = True
-
-    # 1. Try digital text extraction first
-    for page_idx, page in enumerate(doc):
-        pw = page.rect.width
-        ph = page.rect.height
-        pwords = page.get_text("words")  # (x0, y0, x1, y1, word, block_no, line_no, word_no)
-
-        if len(pwords) < 5:
-            is_digital = False
-            break
-
-        lines_map = {}
-        for w_tuple in pwords:
-            x0, y0, x1, y1, w_text, block_no, line_no, word_no = w_tuple
-            w_text = w_text.strip()
-            if not w_text:
-                continue
-
-            norm_box = [
-                round(x0 / pw, 4),
-                round(y0 / ph, 4),
-                round(x1 / pw, 4),
-                round(y1 / ph, 4),
-            ]
-            word_obj = {
-                "text": w_text,
-                "confidence": 95.0,  # Digital text confidence
-                "bbox": norm_box,
-                "pixel_bbox": [round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)],
-                "page": page_idx + 1,
-                "block_no": block_no,
-                "line_no": line_no,
-                "word_no": word_no,
-            }
-            all_words.append(word_obj)
-            lines_map.setdefault((block_no, line_no), []).append(word_obj)
-
-        for lk in sorted(lines_map.keys()):
-            lwords = sorted(lines_map[lk], key=lambda w: w["pixel_bbox"][0])
-            ltext = " ".join(w["text"] for w in lwords)
-            min_x0 = min(w["bbox"][0] for w in lwords)
-            min_y0 = min(w["bbox"][1] for w in lwords)
-            max_x1 = max(w["bbox"][2] for w in lwords)
-            max_y1 = max(w["bbox"][3] for w in lwords)
-
-            all_lines.append({
-                "text": ltext,
-                "bbox": [min_x0, min_y0, max_x1, max_y1],
-                "page": page_idx + 1,
-                "words": lwords,
-                "mean_confidence": 95.0,
-            })
-            total_text.append(ltext)
-
-    # 2. Scanned PDF fallback
-    if not is_digital or len(all_words) < 10:
-        all_words = []
-        all_lines = []
-        total_text = []
-        confidences = []
-
-        for page_idx in range(min(len(doc), 4)):
-            page = doc[page_idx]
-            # 300 DPI matrix
-            mat = fitz.Matrix(300 / 72, 300 / 72)
-            pix = page.get_pixmap(matrix=mat)
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-
-            page_res = ocr_image_with_best_variant(img)
-            for w in page_res["words"]:
-                w["page"] = page_idx + 1
-                all_words.append(w)
-            for l in page_res["lines"]:
-                l["page"] = page_idx + 1
-                all_lines.append(l)
-            if page_res["text"]:
-                total_text.append(page_res["text"])
-            confidences.append(page_res["mean_confidence"])
-
-        num_pages = len(doc)
-        doc.close()
-        overall_conf = round(sum(confidences) / len(confidences), 1) if confidences else 0.0
-        return {
-            "text": "\n".join(total_text),
-            "words": all_words,
-            "lines": all_lines,
-            "mean_confidence": overall_conf,
-            "page_count": min(num_pages, 4),
-            "source": "scanned_ocr_300dpi",
-        }
-
-    page_count = len(doc)
-    doc.close()
-    return {
-        "text": "\n".join(total_text),
-        "words": all_words,
-        "lines": all_lines,
-        "mean_confidence": 95.0,
-        "page_count": page_count,
-        "source": "digital_pdf",
-    }
+def extract_pdf_with_boxes(file_path, password=None, chosen_option=None):
+    """Read embedded text per page; rasterize only pages without usable text."""
+    import time
+    started = time.monotonic()
+    all_words, all_lines, texts, page_timings = [], [], [], []
+    digital_count = scanned_count = 0
+    engines = set()
+    with fitz.open(file_path) as doc:
+        if doc.needs_pass and not doc.authenticate(password or ''):
+            return {'text':'', 'words':[], 'lines':[], 'mean_confidence':0,
+                    'error_code':'PDF_PASSWORD_REQUIRED', 'password_required':True}
+        total_pages = len(doc)
+        for page_index in range(min(total_pages, 4)):
+            page = doc[page_index]
+            started_page = time.monotonic()
+            pwords = page.get_text('words')
+            # Ignore unusable text layers, but do not OCR good pages just because another page is scanned.
+            usable = [w for w in pwords if str(w[4]).strip() and '\ufffd' not in str(w[4])]
+            if len(usable) >= 5:
+                digital_count += 1
+                groups = {}
+                for x0,y0,x1,y1,text,block,line,word in usable:
+                    obj = {'text':text.strip(), 'confidence':95.0,
+                           'bbox':[x0/page.rect.width,y0/page.rect.height,x1/page.rect.width,y1/page.rect.height],
+                           'pixel_bbox':[x0,y0,x1,y1], 'page':page_index+1,
+                           'block_no':block, 'line_no':line, 'word_no':word}
+                    all_words.append(obj)
+                    groups.setdefault((block,line),[]).append(obj)
+                for key in sorted(groups):
+                    words=sorted(groups[key],key=lambda w:w['pixel_bbox'][0])
+                    line={'text':' '.join(w['text'] for w in words), 'words':words, 'page':page_index+1,
+                          'bbox':[min(w['bbox'][0] for w in words),min(w['bbox'][1] for w in words),max(w['bbox'][2] for w in words),max(w['bbox'][3] for w in words)], 'mean_confidence':95.0}
+                    all_lines.append(line);texts.append(line['text'])
+                page_timings.append({'page':page_index+1,'source':'embedded_text','total_seconds':round(time.monotonic()-started_page,3)})
+            else:
+                scanned_count += 1
+                limit=int(os.getenv('OCR_MAX_SIDE','1600'))
+                scale=min(300/72,limit/max(page.rect.width,page.rect.height))
+                pix=page.get_pixmap(matrix=fitz.Matrix(scale,scale),colorspace=fitz.csRGB,alpha=False)
+                image=Image.frombytes('RGB',(pix.width,pix.height),pix.samples)
+                del pix
+                rendered=time.monotonic()
+                try:
+                    result=None
+                    if chosen_option and os.getenv('OCR_ENGINE','paddleocr').lower() == 'paddleocr':
+                        from fast_ocr import fast_image_read
+                        result=fast_image_read(image,chosen_option)
+                    if result is None: result=run_image_ocr(image)
+                    engines.add(result.get('engine',os.getenv('OCR_ENGINE','paddleocr')))
+                finally: image.close()
+                if result.get('error_code'):
+                    return result
+                for word in result.get('words',[]):word['page']=page_index+1;all_words.append(word)
+                for line in result.get('lines',[]):
+                    line['page']=page_index+1
+                    for word in line.get('words',[]):word['page']=page_index+1
+                    all_lines.append(line)
+                texts.append(result.get('text',''))
+                page_timings.append({'page':page_index+1,'source':'image_ocr',
+                                     'render_seconds':round(rendered-started_page,3),
+                                     'total_seconds':round(time.monotonic()-started_page,3),**result.get('timings',{})})
+    return {'text':'\n'.join(texts),'words':all_words,'lines':all_lines,
+            'mean_confidence':round(sum(w['confidence'] for w in all_words)/len(all_words),2) if all_words else 0,
+            'page_count':min(total_pages,4),'total_pages':total_pages,'truncated':total_pages>4,
+            'engine':next(iter(engines)) if len(engines)==1 else 'hybrid' if engines else 'pymupdf',
+            'source':'digital_pdf' if not scanned_count else 'mixed_pdf' if digital_count else 'scanned_ocr_bounded',
+            'timings':{'read_seconds':round(time.monotonic()-started,3),'pages':page_timings}}
 
 # --------------------------------------------------------------------------- #
 # Optional EasyOCR Adapter
@@ -492,7 +467,7 @@ def run_easyocr_on_image(img, langs=None):
 # Unified Entrypoint
 # --------------------------------------------------------------------------- #
 
-def extract_ocr_with_boxes(file_path, original_filename=None):
+def extract_ocr_with_boxes(file_path, original_filename=None, password=None, chosen_option=None):
     """
     Universal entry point:
     Accepts file_path (image or PDF).
@@ -508,7 +483,7 @@ def extract_ocr_with_boxes(file_path, original_filename=None):
     ext = os.path.splitext(original_filename or file_path)[1].lower()
 
     # Check optional EasyOCR
-    engine_env = os.getenv("OCR_ENGINE", "tesseract").lower().strip()
+    engine_env = os.getenv("OCR_ENGINE", "paddleocr").lower().strip()
     if engine_env == "easyocr" and ext in {".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tiff"}:
         try:
             img = Image.open(file_path)
@@ -519,18 +494,25 @@ def extract_ocr_with_boxes(file_path, original_filename=None):
             logger.warning(f"EasyOCR failed: {e}. Falling back to Tesseract.")
 
     if ext == ".pdf":
-        res = extract_pdf_with_boxes(file_path)
-        res["engine"] = "tesseract_pymupdf"
+        res = extract_pdf_with_boxes(file_path, password=password, chosen_option=chosen_option)
+        res["engine"] = "pymupdf" if res.get("source") == "digital_pdf" else res.get("engine",engine_env)
         return res
     else:
         try:
-            img = Image.open(file_path)
-            res = ocr_image_with_best_variant(img)
-            res["engine"] = "tesseract"
-            return res
+            with Image.open(file_path) as img:
+                return run_image_ocr(img)
         except Exception as e:
-            logger.error(f"Failed to process image {file_path}: {e}")
+            logger.error("OCR image failed: %s", getattr(e, "code", type(e).__name__))
             return {
                 "text": "", "words": [], "lines": [],
-                "mean_confidence": 0.0, "engine": "failed"
+                "mean_confidence": 0.0, "engine": "failed", "error_code": getattr(e, "code", "OCR_ENGINE_FAILED")
             }
+
+
+def run_image_ocr(img):
+    if os.getenv("OCR_ENGINE", "paddleocr").lower() == "tesseract":
+        result = ocr_image_with_best_variant(img)
+        result["engine"] = "tesseract"
+        return result
+    from paddle_engine import recognize_image
+    return recognize_image(img)

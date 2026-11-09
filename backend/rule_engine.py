@@ -568,7 +568,7 @@ def get_document_holder(doc_key, doc_data=None):
             return f"holder_{kw}"
     return "applicant"
 
-def check_mismatches(documents):
+def _check_legacy_mismatches(documents):
     """
     Compares uploaded documents across Name, Date of Birth, Address, and Document Number.
     Generates a full field-by-field comparison matrix.
@@ -881,3 +881,13 @@ def check_mismatches(documents):
         "verifiedFieldCount": matches_count,
         "unverifiedFieldCount": unable_count + len(issues),
     }
+
+
+def check_mismatches(documents, profile=None, policy=None, today=None):
+    """Backward-compatible matrix with richer fields and confidence-aware review.
+
+    policy is supplied by the service caller; its thresholds are application
+    preferences, not assertions of statutory eligibility.
+    """
+    from matching_fields import check_extended_mismatches
+    return check_extended_mismatches(documents, profile, policy, today)

@@ -83,7 +83,7 @@ def test_user_isolation_document_access(client, dummy_png_bytes):
     # 1. Log in as User 1 and upload a document
     sid_1 = str(uuid.uuid4())
     with client.session_transaction() as sess:
-        sess["user_id"] = 1
+        sess["user_id"] = int(uuid.uuid4().hex[:7], 16)
         sess["session_id"] = sid_1
 
     upload_res = client.post(
@@ -110,7 +110,7 @@ def test_user_isolation_document_access(client, dummy_png_bytes):
     # 3. Switch session to User 2 (different user)
     sid_2 = str(uuid.uuid4())
     with client.session_transaction() as sess:
-        sess["user_id"] = 2  # Different user
+        sess["user_id"] = int(uuid.uuid4().hex[:7], 16)  # Isolated test identity
         sess["session_id"] = sid_2
 
     # Attempt to view User 1's file -> 404

@@ -1,0 +1,9 @@
+# Full Aadhaar/PAN storage
+
+Full validated Aadhaar and PAN values are encrypted using Fernet authenticated encryption in `checklist_progress.sensitive_ids`. Ciphertexts are bound to the owner, session, service, variant and requirement. Ordinary responses and extracted fields are masked; raw OCR text is not persisted. The authenticated POST reviewed-ids endpoint returns only the signed-in owner’s numbers and sends no-store headers. The application review keeps these values in component memory and hides them by default. Users review and send them into the extension, which stores its profile in its existing passphrase-encrypted vault.
+
+Set IDENTITY_ENCRYPTION_KEY to a Fernet.generate_key() value and IDENTITY_ENCRYPTION_REQUIRED=1. Generate once, keep it out of Git, and back it up separately from the database. Losing this key makes saved numbers unrecoverable. Do not replace it to rotate keys: migration requires decrypting with the old key and re-encrypting with the new one. Startup rejects ciphertext that cannot be authenticated with the configured key.
+
+Startup migrates recoverable legacy full numbers into ciphertext and masks normal columns. Already masked Aadhaar digits cannot be reconstructed: re-scan the document or save a full corrected number in the document editor. Review-only edits prepare extension data; they do not update source records. Replacing or clearing an ID clears its previous encrypted value; deleting its row also deletes its ciphertext.
+
+This protects these extracted numbers at rest, not all application data. Original uploaded files, older backups, names, addresses and dates of birth are not encrypted by this feature. The server can decrypt numbers and must protect its key, filesystem and authenticated sessions. Use HTTPS in production; the local demo uses localhost HTTP. No claim of end-to-end encryption or regulatory certification is made.

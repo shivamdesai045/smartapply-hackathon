@@ -2,7 +2,11 @@
   const $ = (id) => document.getElementById(id);
   const C = SahayakCrypto, IO = SahayakProfileIO;
   const targetTab = Number(new URLSearchParams(location.search).get('tab')) || null;
-  const FIELDS = IO.FIELDS;
+  const EXTRA_FIELDS={guardianName:'Guardian name',spouseName:'Spouse name',passportNumber:'Passport number',voterId:'Voter ID',drivingLicenceNumber:'Driving licence number',learnerLicenceNumber:'Learner licence number',birthCertificateNumber:'Birth certificate number',placeOfBirth:'Place of birth',nationality:'Nationality'};
+  for(const [prefix,level] of [['tenth','10th'],['twelfth','12th']])for(const [suffix,label] of Object.entries({RollNumber:'Roll / seat number',Board:'Board',School:'School',ExamYear:'Passing year',Percentage:'Percentage',TotalMarks:'Total marks'}))EXTRA_FIELDS[prefix+suffix]=level+' '+label;
+  const FIELDS = [...IO.FIELDS,...Object.keys(EXTRA_FIELDS)];
+  for(const [id,title] of Object.entries(EXTRA_FIELDS)){const label=document.createElement('label');label.textContent=title;const input=document.createElement('input');input.id=id;input.autocomplete='off';label.append(input);document.querySelector('#appMain .grid').append(label);}
+
   const IDLE_MS = 5 * 60 * 1000;                                   // auto-lock after 5 minutes without use
   const VAULT_KEY = 'sahayakVault', LEGACY_KEY = 'sahayakAutofill', SESSION_KEY = 'sahayakKey', SYNC_KEY = 'sahayakPendingSync';
   let store = null, vault = null, key = null, lockTimer = null, hasLegacy = false, pendingSync = null;   // store = { current, profiles }, kept only while unlocked
@@ -75,7 +79,7 @@
     $('lock').hidden = false; $('appMain').hidden = true; $('lockBtn').hidden = true;
     $('lockTitle').textContent = setup ? 'Create a passphrase' : 'Unlock';
     $('lockNote').textContent = setup
-      ? 'This passphrase protects your saved details and is needed every time you use them. Use at least 8 characters, and a phrase that is hard to guess. If you forget it, nothing can be recovered: you would export from the website and import again.' + (hasLegacy ? ' Your details saved earlier will be encrypted with it.' : '')
+      ? 'This passphrase protects your saved details and is needed every time you use them. Use at least 8 characters, and a phrase that is hard to guess. If you forget it, delete the saved details and send them again directly from the website.' + (hasLegacy ? ' Your details saved earlier will be encrypted with it.' : '')
       : 'Enter your passphrase to use your saved details.';
     $('confirmRow').hidden = !setup; $('wipeLock').hidden = setup;
     $('unlockBtn').textContent = setup ? 'Create and continue' : 'Unlock'; $('unlockBtn').disabled = false;
@@ -103,16 +107,17 @@
   }
   async function applyPendingSync() {
     if (!pendingSync || !key) return;
-    const { profile } = IO.clean(pendingSync);
-    delete profile.aadhaar; delete profile.pan;
+    const profile={};
+    for(const field of FIELDS)if(typeof pendingSync[field]==='string')profile[field]=pendingSync[field].trim();
     const id = newId(); profile.label = profile.fullName || 'Imported from website';
     store.profiles[id] = profile; store.current = id;
     vault = await C.sealVault(key, vault, store);
     await chrome.storage.local.set({ [VAULT_KEY]: vault });
-    await chrome.storage.local.remove(SYNC_KEY);
+    await chrome.storage.session.remove(SYNC_KEY);
     pendingSync = null; updateSyncUI(true);
     try { chrome.action.setBadgeText({ text: '' }); } catch (_) {}
     renderProfiles(); writeForm(profile);
+    $('out').textContent='Details saved and encrypted in this extension. Open a form, then click the extension icon to use them.';
   }
   async function submitLock() {
     const pass = $('pass').value, msg = $('lockMsg'); msg.textContent = '';
@@ -135,17 +140,18 @@
   }
   async function wipeAll() {
     if (!confirm('Delete ALL saved details from this browser? This cannot be undone.')) return;
-    await chrome.storage.local.remove([VAULT_KEY, LEGACY_KEY]); await chrome.storage.session.remove(SESSION_KEY); chrome.alarms.clear('sahayakLock');
+    await chrome.storage.local.remove([VAULT_KEY, LEGACY_KEY]); await chrome.storage.session.remove([SESSION_KEY,SYNC_KEY]); chrome.alarms.clear('sahayakLock');
+    pendingSync=null;
     vault = null; key = null; store = null; hasLegacy = false; showLock('setup', '');
   }
   async function init() {
     const res = await chrome.storage.local.get([VAULT_KEY, LEGACY_KEY, SYNC_KEY]);
     vault = res[VAULT_KEY] || null; hasLegacy = !!res[LEGACY_KEY];
-    pendingSync = res[SYNC_KEY] || null;
+    pendingSync = (await chrome.storage.session.get(SYNC_KEY))[SYNC_KEY] || null;
     if (!vault) return showLock('setup', '');
     const s = (await chrome.storage.session.get(SESSION_KEY))[SESSION_KEY];
     if (s && s.until > Date.now()) {   // still unlocked from a few minutes ago
-      try { key = await C.importKey(s.jwk); store = await C.decryptWithKey(key, vault); normalise(); await touch(); return showMain(); }
+      try { key = await C.importKey(s.jwk); store = await C.decryptWithKey(key, vault); normalise(); if(pendingSync) await applyPendingSync(); await touch(); return showMain(); }
       catch (e) { key = null; store = null; await chrome.storage.session.remove(SESSION_KEY); }
     }
     showLock('unlock', '');
@@ -241,7 +247,7 @@
     }
   });
   $('discardSyncBtn').addEventListener('click', async () => {
-    await chrome.storage.local.remove(SYNC_KEY);
+    await chrome.storage.session.remove(SYNC_KEY);
     pendingSync = null;
     updateSyncUI(true);
     try { chrome.action.setBadgeText({ text: '' }); } catch (_) {}
@@ -249,5 +255,6 @@
   $('lockBtn').addEventListener('click', () => lock(''));
   $('unlockBtn').addEventListener('click', submitLock);
   ['pass', 'pass2'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') submitLock(); }));
+  $('showIds').addEventListener('click',()=>{const reveal=$('aadhaar').type==='password';$('aadhaar').type=$('pan').type=reveal?'text':'password';$('showIds').textContent=reveal?'Hide Aadhaar/PAN':'Show Aadhaar/PAN';});
   init();
 })();

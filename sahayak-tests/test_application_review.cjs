@@ -1,0 +1,21 @@
+const puppeteer=require('../frontend/node_modules/puppeteer-core');const path=require('node:path');const assert=require('node:assert/strict');
+(async()=>{const browser=await puppeteer.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,userDataDir:path.resolve('work/application-review-browser')});try{
+const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.setRequestInterception(true);
+page.on('request',r=>{const u=new URL(r.url());if(!u.pathname.startsWith('/api/'))return r.continue();let body={};if(u.pathname==='/api/auth/me')body={user:{id:123,name:'Synthetic Tester',preferred_language:'en'}};else if(u.pathname.endsWith('/reviewed-ids'))body={documents:[{requirement:'Identity',chosenOption:'Aadhaar Card',ids:{aadhaar:'234567890124'}},{requirement:'PAN',chosenOption:'PAN Card',ids:{pan:'ABCPE1234F'}}]};else if(u.pathname.startsWith('/api/report/'))body={readinessScore:60,readinessLabel:'Needs review',service:'Passport',variant:'adult',documents:[{requirement:'Identity',chosenOption:'Aadhaar Card',uploaded:true,docName:'Synthetic Example',docDob:'2002-08-19',docNumber:'XXXX XXXX 1234',doc_fields:{}},{requirement:'Birth',chosenOption:'10th Marksheet',uploaded:true,docName:'Different Example',doc_fields:{doc_number:{value:'SSC123'},board:{value:'CBSE'}}}],issues:[],comparisons:[],servicePortal:{name:'Passport Seva',url:'https://www.passportindia.gov.in/'}};r.respond({status:200,contentType:'application/json',body:JSON.stringify(body)});});
+await page.goto('http://127.0.0.1:5173/report/Passport');
+await page.waitForFunction(()=>document.body.innerText.includes('Review details & apply online'));
+await page.evaluate(()=>[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Review details & apply online')).click());
+await page.waitForSelector('input[aria-label="Full name"]');
+assert.equal(await page.$eval('input[aria-label="Full name"]',e=>e.value),'');
+assert.equal(await page.$eval('input[aria-label="Date of birth"]',e=>e.value),'2002-08-19');
+assert.equal(await page.$eval('input[aria-label="10th: Roll / seat number"]',e=>e.value),'SSC123');
+await page.select('select[aria-label="Choose Full name"]','Synthetic Example');
+await page.type('input[aria-label="Email"]','synthetic@example.test');
+await page.click('input[type="checkbox"]');
+await page.evaluate(()=>{window.applicationTestPayload=null;window.addEventListener('message',e=>{if(e.data?.type==='SAHAYAK_PREPARE_APPLICATION'){window.applicationTestPayload=e.data;window.postMessage({type:'SAHAYAK_PREPARE_APPLICATION_RES',requestId:e.data.requestId,success:true},location.origin);}});[...document.querySelectorAll('button')].find(b=>b.textContent.includes('prepare autofill')).click();});
+await page.waitForFunction(()=>document.body.innerText.includes('Official portal opened'));
+const payload=await page.evaluate(()=>window.applicationTestPayload);assert.equal(payload.profile.fullName,'Synthetic Example');assert.equal(payload.profile.email,'synthetic@example.test');assert.equal(payload.profile.tenthRollNumber,'SSC123');assert.equal(payload.profile.aadhaar,'234567890124');assert.equal(payload.profile.pan,'ABCPE1234F');assert.equal(await page.$eval('input[aria-label="Aadhaar number"]',e=>e.type),'password');assert.equal(payload.portal,'https://www.passportindia.gov.in/');
+await page.setViewport({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+await page.screenshot({path:path.resolve('work/application-review-mobile.png'),fullPage:true});
+assert.deepEqual(errors,[]);console.log('PASS: actual React review screen, conflict choice, edits, DOB and academic fields, authenticated ID retrieval and hidden inputs, bridge payload and mobile layout');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});
