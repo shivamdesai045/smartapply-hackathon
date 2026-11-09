@@ -248,7 +248,8 @@ def ocr_error_message(code):
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "message": "Sahayak backend is running",
-                    "ocr_engine": os.getenv("OCR_ENGINE", "paddleocr")})
+                    "ocr_engine": os.getenv("OCR_ENGINE", "paddleocr"),
+                    "demo_mode": os.getenv("DEMO_MODE") == "1"})
 
 
 @app.route("/api/session", methods=["GET"])

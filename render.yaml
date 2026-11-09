@@ -1,22 +1,20 @@
-# Paid persistent deployment. Review Render's displayed price before applying.
+# Free demo only: accounts and uploads reset when Render restarts this service.
 services:
   - type: web
     name: sahayak-api
     runtime: docker
-    plan: standard
+    plan: free
     region: singapore
     numInstances: 1
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
     autoDeployTrigger: commit
-    disk:
-      name: sahayak-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: ENV
         value: production
+      - key: DEMO_MODE
+        value: "1"
       - key: SECRET_KEY
         generateValue: true
       - key: IDENTITY_ENCRYPTION_KEY
@@ -26,9 +24,9 @@ services:
       - key: SESSION_COOKIE_SECURE
         value: "true"
       - key: SQLITE_PATH
-        value: /var/data/sahayak.db
+        value: /tmp/sahayak-demo/sahayak.db
       - key: UPLOAD_FOLDER
-        value: /var/data/uploads
+        value: /tmp/sahayak-demo/uploads
       - key: FRONTEND_ORIGIN
         sync: false
       - key: CORS_ORIGINS

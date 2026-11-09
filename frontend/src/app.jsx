@@ -134,6 +134,9 @@ function AppShell() {
         {!isHome && <Header />}
 
         <main>
+          {import.meta.env.VITE_DEMO_MODE === '1' && <div role="note" className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950">
+            Free demo: use synthetic sample documents only. Accounts and uploads reset when the server restarts. First access and OCR may be slow while the server starts.
+          </div>}
           <Routes>
 
             <Route
