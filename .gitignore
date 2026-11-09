@@ -25,3 +25,5 @@ work/
 *.pkl.bak
 *.pkl.candidate
 backend/ocr_fixtures/reports/
+
+.vercel/

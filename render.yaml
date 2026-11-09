@@ -1,0 +1,53 @@
+# Paid persistent deployment. Review Render's displayed price before applying.
+services:
+  - type: web
+    name: sahayak-api
+    runtime: docker
+    plan: standard
+    region: singapore
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    disk:
+      name: sahayak-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: IDENTITY_ENCRYPTION_KEY
+        generateValue: true
+      - key: IDENTITY_ENCRYPTION_REQUIRED
+        value: "1"
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SQLITE_PATH
+        value: /var/data/sahayak.db
+      - key: UPLOAD_FOLDER
+        value: /var/data/uploads
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: OCR_ENGINE
+        value: paddleocr
+      - key: OCR_PRELOAD
+        value: "1"
+      - key: OCR_FAST_TEXT_PASS
+        value: "1"
+      - key: OCR_CPU_THREADS
+        value: "2"
+      - key: OCR_REC_BATCH_SIZE
+        value: "1"
+      - key: OCR_LINE_ORIENTATION
+        value: "0"
+      - key: OCR_MAX_SIDE
+        value: "1600"
+      - key: OCR_DET_MAX_SIDE
+        value: "960"
+      - key: OCR_RETRY_BUDGET_SECONDS
+        value: "8"

@@ -28,10 +28,17 @@ env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(dotenv_path=env_path)
 
 GOOGLE_TRANSLATION_API_KEY = os.getenv("GOOGLE_TRANSLATION_API_KEY")
-UPLOAD_FOLDER = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads"))
+UPLOAD_FOLDER = os.path.abspath(os.getenv("UPLOAD_FOLDER") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads"))
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
+if os.getenv("ENV") == "production":
+    from identity_store import cipher
+    os.environ["IDENTITY_ENCRYPTION_REQUIRED"] = "1"
+    cipher()  # Fail before accepting uploads if the production encryption key is invalid.
+    if not os.getenv("UPLOAD_FOLDER"):
+        raise RuntimeError("Production requires an explicit persistent UPLOAD_FOLDER")
+
 
 # Security & Session Configuration
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -54,6 +61,15 @@ origins = [o.strip() for o in cors_origins_env.split(",") if o.strip() and o.str
 if not origins:
     origins = default_origins
 CORS(app, supports_credentials=True, origins=origins)
+
+@app.after_request
+def private_api_responses(response):
+    # The Vercel reverse proxy must never cache account, document or job responses.
+    if request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, private"
+        response.headers["Vercel-CDN-Cache-Control"] = "no-store"
+        response.headers["CDN-Cache-Control"] = "no-store"
+    return response
 
 # Rate limiter setup
 limiter = Limiter(

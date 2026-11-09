@@ -104,6 +104,8 @@ def _sqlite_row_to_python(row, description, as_dict=False):
 def _database_is_available():
     global USE_SQLITE
     if not DATABASE_URL:
+        if os.getenv("ENV") == "production" and not os.getenv("SQLITE_PATH"):
+            raise RuntimeError("Production requires DATABASE_URL or a persistent SQLITE_PATH")
         USE_SQLITE = True
         return False
     try:
@@ -112,11 +114,19 @@ def _database_is_available():
         USE_SQLITE = False
         return True
     except Exception:
+        if os.getenv("ENV") == "production":
+            raise RuntimeError("Configured production database is unavailable") from None
         USE_SQLITE = True
         return False
 
 
 _database_is_available()
+
+
+def sqlite_path():
+    path = os.path.abspath(os.getenv("SQLITE_PATH") or os.path.join(os.path.dirname(__file__), "sahayak.db"))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path
 
 
 def get_pool():
@@ -131,7 +141,7 @@ def get_pool():
 @contextmanager
 def get_db_connection():
     if USE_SQLITE:
-        conn = SQLiteConnectionAdapter(sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sahayak.db")))
+        conn = SQLiteConnectionAdapter(sqlite3.connect(sqlite_path(), timeout=30))
         try:
             yield conn
         finally:
@@ -149,7 +159,7 @@ def get_db_connection():
 def get_connection():
     """Legacy helper returning a direct connection for standalone scripts."""
     if USE_SQLITE:
-        return SQLiteConnectionAdapter(sqlite3.connect(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sahayak.db")))
+        return SQLiteConnectionAdapter(sqlite3.connect(sqlite_path(), timeout=30))
     conn = psycopg2.connect(DATABASE_URL)
     conn.autocommit = False
     return conn

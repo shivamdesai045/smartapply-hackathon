@@ -1,0 +1,16 @@
+**
+!backend/
+!backend/**
+backend/.env*
+backend/uploads/
+backend/*.db*
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/ocr_fixtures/
+backend/tests/
+backend/test_*
+backend/ml/data/
+backend/ml/synth/data/
+backend/ml/models/*.bak
+backend/ml/models/*.candidate
+**/*.log
